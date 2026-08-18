@@ -66,12 +66,19 @@
     return {
       lukutaso: 1,          // 1..8, mukautuu automaattisesti (piilossa lapselta)
       tahdet: 0,            // XP-tähdet — eivät koskaan vähene
+      kolikot: 0,           // 🪙 kaupan valuutta
+      kilvet: 3,            // 🛡️ torjuu hirviöiden hassut vastaiskut
+      varusteet: [],        // kaupasta ostetut varusteet (tunnukset)
+      kombo: 0,             // 🔥 lukuputki — kasvattaa vahinkoa, säilyy taisteluista toiseen
+      syoksyJono: false,    // ansaittu kombosyöksy odottaa vuoroaan
+      komboPituus: 3,       // kombosyöksyn palojen määrä (kiihtyy 3 -> 5)
       putki: 0,             // peräkkäiset puhtaat onnistumiset
       kompuroinnit: 0,      // peräkkäiset vaikeat tehtävät
       arvonimiIndeksi: 0,
       avatar: "ritari",
       reppu: {},            // aarteen nimi -> lukumäärä
       voitot: 0,
+      tilastot: { paivittain: {}, hankalat: {} },  // raportti aikuiselle
       alue: null,           // koulun alue jolla ollaan (tunnus)
       vastustaja: null,     // kesken oleva taistelu
       tarina: null,         // { nimi, virke } kun pomotaistelu käynnissä
@@ -88,6 +95,8 @@
       var pohja = oletusTila();
       for (var k in pohja) if (t[k] === undefined) t[k] = pohja[k];
       for (var a in pohja.asetukset) if (t.asetukset[a] === undefined) t.asetukset[a] = pohja.asetukset[a];
+      if (!t.tilastot.paivittain) t.tilastot.paivittain = {};
+      if (!t.tilastot.hankalat) t.tilastot.hankalat = {};
       return t;
     } catch (e) { return oletusTila(); }
   }
@@ -245,13 +254,68 @@
     konfetti(40, ["🎉", "⭐", "👑", "💫", "🌈"]);
   }
 
+  /* ================= varusteet ================= */
+
+  function omistaa(tunnus) {
+    return tila.varusteet.indexOf(tunnus) >= 0;
+  }
+
+  function omatVarusteet() {
+    return (SISALTO.varusteet || []).filter(function (v) { return omistaa(v.tunnus); });
+  }
+
+  function miekkaBonus() {
+    var paras = 0;
+    omatVarusteet().forEach(function (v) {
+      if (v.tyyppi === "miekka" && v.vahinko > paras) paras = v.vahinko;
+    });
+    return paras;
+  }
+
+  function kilpiKatto() {
+    var katto = 3;
+    omatVarusteet().forEach(function (v) {
+      if (v.tyyppi === "kilpi" && v.kilpiMax > katto) katto = v.kilpiMax;
+    });
+    return katto;
+  }
+
+  // Kilvet + varusteet sankarin vierellä.
+  function paivitaSankariRivi() {
+    var osat = [];
+    for (var i = 0; i < kilpiKatto(); i++) osat.push(i < tila.kilvet ? "🛡️" : "▫️");
+    var muut = omatVarusteet()
+      .filter(function (v) { return v.tyyppi !== "kilpi"; })
+      .map(function (v) { return v.emoji.slice(0, 2); });
+    $("sankari-rivi").textContent = osat.join("") + (muut.length ? "  " + muut.join(" ") : "");
+  }
+
+  /* ================= kombo ================= */
+
+  function paivitaKombo() {
+    var e = $("kombo-merkki");
+    var kombo = tila.kombo || 0;
+    if (kombo >= 2) {
+      e.textContent = "🔥 KOMBO ×" + kombo;
+      e.classList.add("nakyy");
+      e.classList.remove("poksahdus");
+      void e.offsetWidth;
+      e.classList.add("poksahdus");
+    } else {
+      e.classList.remove("nakyy");
+    }
+  }
+
   /* ================= HUD ================= */
 
   function paivitaHUD() {
     var a = SISALTO.arvonimet[tila.arvonimiIndeksi];
     $("arvonimi-merkki").textContent = a.emoji + " " + a.nimi;
     $("xp-merkki").textContent = "⭐ " + tila.tahdet;
+    $("kolikko-merkki").textContent = "🪙 " + tila.kolikot;
     $("aani-nappi").textContent = tila.asetukset.aanet ? "🔊" : "🔇";
+    paivitaSankariRivi();
+    paivitaKombo();
   }
 
   function poksautaXP() {
@@ -362,6 +426,7 @@
     $("vastustaja-rekvisiitta").textContent = v.rekvisiitta || "";
     $("vastustaja-nimi").textContent = v.nimi;
     renderoiHP();
+    paivitaKombo();
 
     // Käytä oikeaa kuvaa jos sellainen on kuvat/-kansiossa.
     e.classList.remove("kuvallinen");
@@ -405,6 +470,13 @@
   function rakennaTehtava() {
     var taso = tehokasLukutaso();
     var def = LUKUTASOT[taso - 1];
+
+    // Ansaittu kombosyöksy: palat luetaan putkeen kiihtyvään tahtiin.
+    if (tila.syoksyJono && def.tyyppi !== "tarina") {
+      tila.syoksyJono = false;
+      rakennaKombosyoksy(taso);
+      return;
+    }
 
     if (def.tyyppi === "tarina") {
       var tarina = tarinaNimella(tila.tarina.nimi);
@@ -454,6 +526,29 @@
       tyyppi: "lause", kohde: lause, sanat: lause.split(/\s+/),
       yritykset: 0, apu: false, palat: null, ratkaistu: false, osumat: []
     };
+  }
+
+  function rakennaKombosyoksy(taso) {
+    var maara = Math.min(5, Math.max(3, tila.komboPituus || 3));
+    var tavuja = taso <= 2;
+    var pooli;
+    if (tavuja) {
+      pooli = SISALTO.tavut.slice();
+    } else {
+      pooli = suodataTaiKaikki(kaikkiSanat(), function (s) {
+        return TAVUTUS.tavuta(s).length <= (taso >= 6 ? 3 : 2);
+      }).slice();
+    }
+    var osat = [];
+    while (osat.length < maara && pooli.length) {
+      osat.push(pooli.splice(Math.floor(Math.random() * pooli.length), 1)[0]);
+    }
+    tehtava = {
+      tyyppi: "kombo", kohde: osat.join(" "),
+      palat: { tyyppi: tavuja ? "tavut" : "sanat", osat: osat, indeksi: 0, yritykset: 0 },
+      yritykset: 0, apu: false, ratkaistu: false
+    };
+    kupla("⚡ KOMBOSYÖKSY! Lue palat putkeen — jättivahinko!");
   }
 
   /* ================= tehtävän piirtäminen ================= */
@@ -506,7 +601,9 @@
     var otsikko = $("tehtava-otsikko");
     var kortti = $("tehtava-teksti");
     kortti.textContent = "";
-    otsikko.textContent = "Pala kerrallaan! Sano tummennettu pala:";
+    otsikko.textContent = tehtava.tyyppi === "kombo"
+      ? "⚡ KOMBOSYÖKSY! Lue palat putkeen:"
+      : "Pala kerrallaan! Sano tummennettu pala:";
     for (var i = 0; i < p.osat.length; i++) {
       if (i > 0) kortti.appendChild(document.createTextNode(" "));
       var luokka = "pala" + (i < p.indeksi ? " valmis-pala" : (i === p.indeksi ? " aktiivinen" : " tuleva"));
@@ -540,7 +637,8 @@
   function paivitaMikkiTeksti() {
     var e = $("mikki-teksti");
     if (!tehtava) { e.textContent = "SANO!"; return; }
-    if (tehtava.palat) e.textContent = "SANO PALA!";
+    if (tehtava.tyyppi === "kombo") e.textContent = "SYÖKSY! ⚡";
+    else if (tehtava.palat) e.textContent = "SANO PALA!";
     else if (tehtava.tyyppi === "tavu") e.textContent = "SANO TAVU!";
     else if (tehtava.tyyppi === "sana") e.textContent = "LUE SANA!";
     else e.textContent = "LUE JA HYÖKKÄÄ!";
@@ -582,13 +680,17 @@
   function aloitaKuuntelu() {
     if (!tehtava || tehtava.ratkaistu) return;
     PUHE.hiljenna();
-    var jatkuva = (tehtava.tyyppi === "lause" || tehtava.tyyppi === "tarina") && !tehtava.palat;
+    var kombo = tehtava.tyyppi === "kombo";
+    var jatkuva = kombo ||
+      ((tehtava.tyyppi === "lause" || tehtava.tyyppi === "tarina") && !tehtava.palat);
     var ratkaistuTassa = false;
+    if (tehtava.palat) tehtava.palat.sessioAlku = tehtava.palat.indeksi;
+    var alkuIndeksi = tehtava.palat ? tehtava.palat.indeksi : -1;
     asetaKuunteluUI(true);
 
     var kaynnistyi = PUHE.aloita({
       jatkuva: jatkuva,
-      maksimiMs: jatkuva ? 30000 : 10000,
+      maksimiMs: kombo ? 22000 : (jatkuva ? 30000 : 10000),
       hiljaisuusMs: 3000,
       eiPuhettaMs: 8000,
       tulos: function (teksti, kandidaatit) {
@@ -603,7 +705,13 @@
         if (ratkaistuTassa || !tehtava || tehtava.ratkaistu) return;
         if (syy === "estetty") { mikkiEstyi(); return; }
         if (tarkista(teksti, kandidaatit)) return;
+        // Palat etenivät osittain tämän kuuntelun aikana — ei virhettä.
+        if (tehtava.palat && tehtava.palat.indeksi > alkuIndeksi) {
+          kupla("Hyvä putki! Paina nappia ja jatka! ➡️");
+          return;
+        }
         if (syy === "ei-puhetta" || !teksti) { eiKuulunut(); return; }
+        if (tehtava.palat) { osaEpaonnistui(teksti); return; }
         epaonnistuiYritys(teksti);
       }
     });
@@ -634,12 +742,23 @@
 
     if (tehtava.palat) {
       var p = tehtava.palat;
-      var kohde = p.osat[p.indeksi];
-      var osui = kandidaatit.some(function (k) {
-        return p.tyyppi === "tavut" ? VERTAILU.tavuOsuu(kohde, k) : VERTAILU.kokoSanaOsuu(kohde, k);
-      });
-      if (osui) { osaOnnistui(false); return true; }
-      return false;
+      // Yhdellä kuuntelulla voi kuitata useita paloja peräkkäin.
+      // Aiemmin tässä sessiossa kuitatut palat ohitetaan kuullusta
+      // tekstistä, ettei sama sana kuittaa kahta palaa.
+      var ohita = p.indeksi - (p.sessioAlku !== undefined ? p.sessioAlku : p.indeksi);
+      var paras = p.indeksi;
+      for (var ki = 0; ki < kandidaatit.length; ki++) {
+        var indeksi = VERTAILU.jonoOsuu(p.osat, p.indeksi, kandidaatit[ki], p.tyyppi === "tavut", ohita);
+        if (indeksi > paras) paras = indeksi;
+      }
+      var askeleet = paras - p.indeksi;
+      for (var a = 0; a < askeleet && !tehtava.ratkaistu; a++) osaOnnistui(true);
+      if (tehtava.ratkaistu) return true;
+      if (askeleet > 0 && tehtava.tyyppi !== "kombo") {
+        kupla("Hyvä! Seuraava pala! ➡️");
+        return true; // kuuntelu päättyy, seuraava pala uudella napautuksella
+      }
+      return false; // kombossa kuuntelu jatkuu putkeen
     }
 
     if (tehtava.tyyppi === "tavu") {
@@ -780,69 +899,183 @@
     if (PUHE.kuunteleeko()) PUHE.lopeta("valmis");
     PUHE.hiljenna();
 
-    var puhdas = tehtava.yritykset === 0 && !tehtava.apu && lahde !== "auto" && lahde !== "ohitus";
-    var kompuroi = lahde === "auto" || lahde === "ohitus" || tehtava.yritykset >= 2 || !!tehtava.palat;
-
     var v = tila.vastustaja;
-    var kriittinen = puhdas && !v.pomo && (tila.putki >= 2 || Math.random() < 0.2);
-    var vahinko = kriittinen ? 20 : 10; // yksi luku = 10 vahinkoa, kriittinen 20
+    var syoksy = tehtava.tyyppi === "kombo";
+    var puhdas = tehtava.yritykset === 0 && !tehtava.apu && lahde !== "auto" && lahde !== "ohitus";
+    var kompuroi = !syoksy &&
+      (lahde === "auto" || lahde === "ohitus" || tehtava.yritykset >= 2 || !!tehtava.palat);
 
-    // Tähdet (XP) — aina vähintään yksi, yrityskin palkitaan.
-    tila.tahdet += kriittinen ? 2 : 1;
-    tarkistaArvonimi();
+    var kriittinen = false;
+    var vahinko, xp;
 
-    // Mukautuva vaikeustaso — hiljaa taustalla.
-    if (puhdas) tila.putki++; else tila.putki = 0;
-    if (kompuroi) tila.kompuroinnit++;
-    else if (tehtava.yritykset <= 1) tila.kompuroinnit = 0;
-
-    var tasoNousi = false;
-    if (tila.putki >= 3 && tila.lukutaso < 8) {
-      tila.lukutaso++; tila.putki = 0; tila.kompuroinnit = 0; tasoNousi = true;
-    } else if (tila.kompuroinnit >= 2 && tila.lukutaso > 1) {
-      tila.lukutaso--; tila.kompuroinnit = 0; tila.putki = 0;
-      // Ei kerrota lapselle "laskusta" — vain kannustetaan.
+    if (syoksy) {
+      // Kombosyöksy: jokainen pala tekee 15 vahinkoa kerralla.
+      var paloja = tehtava.palat.osat.length;
+      vahinko = 15 * paloja + miekkaBonus();
+      xp = paloja;
+      tila.komboPituus = Math.min(5, (tila.komboPituus || 3) + 1); // kiihtyvä tahti
+      tila.kombo++;
+    } else {
+      // Kombomittari eli lukuputki: puhdas luku kasvattaa vahinkoa,
+      // muu katkaisee putken (lempeästi — mitään ei menetetä).
+      tila.kombo = puhdas ? (tila.kombo || 0) + 1 : 0;
+      kriittinen = puhdas && v && !v.pomo && (tila.putki >= 2 || Math.random() < 0.2);
+      var komboBonus = tila.kombo >= 2 ? 5 * Math.min(tila.kombo - 1, 4) : 0;
+      vahinko = (kriittinen ? 20 : 10) + komboBonus + miekkaBonus();
+      xp = kriittinen ? 2 : 1;
     }
 
-    // Siirryttiinkö koulun uudelle alueelle? Ovi näytetään, kun
-    // meneillään oleva taistelu on ensin viety loppuun.
-    var alueNyt = alueTasolle(tila.lukutaso);
-    if (alueNyt && tila.alue !== alueNyt.tunnus) {
-      tila.alue = alueNyt.tunnus;
-      if (tasoNousi) odottavaAlue = alueNyt;
+    // Kombosyöksy ansaitaan kombolla 3 ja sen jälkeen joka viidennellä.
+    if (tila.kombo === 3 || (tila.kombo > 3 && (tila.kombo - 3) % 5 === 0)) {
+      tila.syoksyJono = true;
+    }
+
+    // Tähdet ja kolikot — aina vähintään yksi, yrityskin palkitaan.
+    tila.tahdet += xp;
+    tila.kolikot += xp;
+    tarkistaArvonimi();
+    kirjaaTilasto(puhdas, kompuroi);
+
+    // Mukautuva vaikeustaso — hiljaa taustalla. Kombosyöksy on
+    // bonuskierros eikä vaikuta lukutasoon.
+    var tasoNousi = false;
+    if (!syoksy) {
+      if (puhdas) tila.putki++; else tila.putki = 0;
+      if (kompuroi) tila.kompuroinnit++;
+      else if (tehtava.yritykset <= 1) tila.kompuroinnit = 0;
+
+      if (tila.putki >= 3 && tila.lukutaso < 8) {
+        tila.lukutaso++; tila.putki = 0; tila.kompuroinnit = 0; tasoNousi = true;
+      } else if (tila.kompuroinnit >= 2 && tila.lukutaso > 1) {
+        tila.lukutaso--; tila.kompuroinnit = 0; tila.putki = 0;
+        // Ei kerrota lapselle "laskusta" — vain kannustetaan.
+      }
+
+      // Siirryttiinkö koulun uudelle alueelle? Ovi näytetään, kun
+      // meneillään oleva taistelu on ensin viety loppuun.
+      var alueNyt = alueTasolle(tila.lukutaso);
+      if (alueNyt && tila.alue !== alueNyt.tunnus) {
+        tila.alue = alueNyt.tunnus;
+        if (tasoNousi) odottavaAlue = alueNyt;
+      }
     }
 
     // Tarinassa siirrytään seuraavaan virkkeeseen; pomoon jokainen
-    // virke tekee tasan 10 vahinkoa.
+    // virke tekee tasan 10 vahinkoa (tarina rytmittää taistelun).
     if (v.pomo && tehtava.tyyppi === "tarina") {
       tila.tarina.virke = tehtava.virke + 1;
       vahinko = 10;
     }
+
     v.hp = Math.max(0, v.hp - vahinko);
 
     // Efektit
-    hyokkaysAnimaatio(kriittinen, vahinko);
-    if (kriittinen) AANET.kriittinen(); else AANET.osuma();
+    var vahinkoTeksti = syoksy ? "SYÖKSY −" + vahinko + " 💥💥"
+      : kriittinen ? "KRIITTINEN −" + vahinko + " 💥"
+      : (tila.kombo >= 2 ? "KOMBO ×" + tila.kombo + " −" + vahinko + " 💥" : "−" + vahinko + " 💥");
+    hyokkaysAnimaatio(kriittinen || syoksy, vahinkoTeksti);
+    if (kriittinen || syoksy) AANET.kriittinen(); else AANET.osuma();
     if (lahde !== "auto" && Math.random() < 0.22) setTimeout(AANET.pieru, 500);
     poksautaXP();
     paivitaHUD();
     renderoiHP();
 
-    if (lahde === "auto" || lahde === "ohitus") kupla("Hyvä yritys, se osui silti! 💥");
+    if (syoksy) kupla("KOMBOSYÖKSY OSUI! ⚡ Hirviö pyörii ympyrää!");
+    else if (lahde === "auto" || lahde === "ohitus") kupla("Hyvä yritys, se osui silti! 💥");
     else if (kriittinen) kupla("KRIITTINEN OSUMA! 💥💥 Upeaa lukemista!");
     else kupla(satunnainen(SISALTO.kehut));
 
-    konfetti(kriittinen ? 16 : 8, ["💥", "⭐", "✨"]);
+    konfetti(kriittinen || syoksy ? 16 : 8, ["💥", "⭐", "✨"]);
     tallenna();
 
     setTimeout(function () {
-      if (tila.vastustaja && tila.vastustaja.hp <= 0) {
-        voitto();
+      if (tila.vastustaja && tila.vastustaja.hp <= 0) { voitto(); return; }
+      if (tasoNousi) toast("✨ Uusia loitsuja avattu!");
+      // Hirviön vuoro: välillä hassu vastaisku, jonka kilpi torjuu
+      // tai sankari väistää — ei ikinä oikeaa haittaa.
+      if (tila.vastustaja && !tila.vastustaja.pomo &&
+          !tila.syoksyJono && Math.random() < 0.3) {
+        hirvionVastaisku(seuraavaTehtava);
       } else {
-        if (tasoNousi) toast("✨ Uusia loitsuja avattu!");
         seuraavaTehtava();
       }
     }, 1500);
+  }
+
+  /* ================= tilastot raporttia varten ================= */
+
+  function kirjaaTilasto(puhdas, hankala) {
+    var paiva = new Date().toISOString().slice(0, 10);
+    var t = tila.tilastot;
+    var p = t.paivittain[paiva] || { tehtavia: 0, ekalla: 0, apua: 0 };
+    p.tehtavia++;
+    if (puhdas) p.ekalla++;
+    if (tehtava.apu || tehtava.palat) p.apua++;
+    t.paivittain[paiva] = p;
+    var paivat = Object.keys(t.paivittain).sort();
+    while (paivat.length > 60) delete t.paivittain[paivat.shift()];
+
+    if (hankala && tehtava.kohde && tehtava.tyyppi !== "kombo") {
+      var avain = String(tehtava.kohde).slice(0, 48);
+      t.hankalat[avain] = (t.hankalat[avain] || 0) + 1;
+      var avaimet = Object.keys(t.hankalat);
+      if (avaimet.length > 50) {
+        avaimet.sort(function (a, b) { return t.hankalat[a] - t.hankalat[b]; });
+        delete t.hankalat[avaimet[0]];
+      }
+    }
+  }
+
+  /* ================= hirviön vastaisku ================= */
+
+  function hirvionVastaisku(kunValmis) {
+    var v = tila.vastustaja;
+    if (!v) { kunValmis(); return; }
+    kupla(v.nimi + " " + satunnainen(SISALTO.hyokkaysHuudot));
+
+    var vast = $("vastustaja");
+    var sankari = $("sankari");
+    var lahto = vast.getBoundingClientRect();
+    var maali = sankari.getBoundingClientRect();
+    var ammus = luo("div", "lentava-loitsu", v.rekvisiitta || "🟢");
+    ammus.style.left = (lahto.left + lahto.width / 2) + "px";
+    ammus.style.top = (lahto.top + lahto.height / 2) + "px";
+    document.body.appendChild(ammus);
+    void ammus.offsetWidth;
+    var dx = (maali.left + maali.width / 2) - (lahto.left + lahto.width / 2);
+    var dy = (maali.top + maali.height / 2) - (lahto.top + lahto.height / 2);
+    ammus.style.transform =
+      "translate(calc(-50% + " + dx + "px), calc(-50% + " + dy + "px)) scale(0.9) rotate(-30deg)";
+    ammus.style.opacity = "0.15";
+
+    setTimeout(function () {
+      if (ammus.parentNode) ammus.parentNode.removeChild(ammus);
+      var taistelu = $("taistelu");
+      var tRect = taistelu.getBoundingClientRect();
+      var sRect = sankari.getBoundingClientRect();
+
+      if (tila.kilvet > 0) {
+        tila.kilvet--;
+        kupla(satunnainen(SISALTO.torjuntaHuudot));
+        AANET.torjunta();
+        var valays = luo("div", "kilpi-valays", "🛡️");
+        valays.style.left = (sRect.left - tRect.left + sRect.width / 2) + "px";
+        valays.style.top = (sRect.top - tRect.top + sRect.height / 2) + "px";
+        taistelu.appendChild(valays);
+        valays.addEventListener("animationend", function () {
+          if (valays.parentNode) valays.parentNode.removeChild(valays);
+        });
+      } else {
+        kupla(satunnainen(SISALTO.vaistoHuudot));
+        AANET.hups();
+        sankari.classList.remove("vaistohyppy");
+        void sankari.offsetWidth;
+        sankari.classList.add("vaistohyppy");
+      }
+      paivitaSankariRivi();
+      tallenna();
+      setTimeout(kunValmis, 1000);
+    }, 620);
   }
 
   // Näytetään juhlaruudut oikeassa järjestyksessä taistelun päätyttyä:
@@ -853,7 +1086,7 @@
     seuraavaTehtava();
   }
 
-  function hyokkaysAnimaatio(kriittinen, vahinko) {
+  function hyokkaysAnimaatio(iso, vahinkoTeksti) {
     // Sankari syöksyy
     var sankari = $("sankari");
     sankari.classList.remove("syoksy");
@@ -891,16 +1124,15 @@
         if (viilto.parentNode) viilto.parentNode.removeChild(viilto);
       });
 
-      if (kriittinen) {
-        // Kriittinen osuma ravistaa koko ruutua.
+      if (iso) {
+        // Iso osuma ravistaa koko ruutua.
         var alue = $("pelialue");
         alue.classList.remove("ravista");
         void alue.offsetWidth;
         alue.classList.add("ravista");
       }
 
-      var isku = luo("div", "vahinko-luku" + (kriittinen ? " kriittinen" : ""),
-        kriittinen ? "KRIITTINEN −" + vahinko + " 💥" : "−" + vahinko + " 💥");
+      var isku = luo("div", "vahinko-luku" + (iso ? " kriittinen" : ""), vahinkoTeksti);
       var alusta = $("taistelu");
       alusta.appendChild(isku);
       isku.addEventListener("animationend", function () {
@@ -914,15 +1146,20 @@
     tila.voitot++;
 
     var bonus = 2;
+    var kolikkoBonus = 5;
     var otsikko = satunnainen(SISALTO.voittohuudot);
     if (v.pomo) {
       bonus = 5;
+      kolikkoBonus = 10;
       otsikko = "SATU LUETTU LOPPUUN! 📖🎉";
       tila.tarinatLuettu[tila.tarina.nimi] = (tila.tarinatLuettu[tila.tarina.nimi] || 0) + 1;
       tila.tarina = null;
     }
     tila.tahdet += bonus;
+    tila.kolikot += kolikkoBonus;
+    tila.kilvet = Math.min(kilpiKatto(), tila.kilvet + 1); // kilpi korjautuu voitosta
     tarkistaArvonimi();
+    AANET.kolikko();
 
     // Aarre reppuun
     var aarre = satunnainen(SISALTO.aarteet);
@@ -942,6 +1179,10 @@
     AANET.voitto();
     setTimeout(AANET.pieru, 600);
     konfetti(36, ["💥", "🟢", "🤢", "💦", "⭐", "🏆", "💩"]);
+    if (omistaa("pierupossu")) {
+      // Pierupossu juhlii voittoa omalla tavallaan.
+      setTimeout(function () { AANET.pieru(); konfetti(10, ["🐷", "💨"]); }, 1300);
+    }
 
     tila.vastustaja = null;
     tallenna();
@@ -951,7 +1192,7 @@
       $("voitto-otsikko").textContent = otsikko;
       $("aarre-emoji").textContent = aarre.emoji;
       $("aarre-nimi").textContent = "Sait aarteen: " + aarre.nimi + "!";
-      $("voitto-xp").textContent = "+" + bonus + " ⭐ bonustähteä!";
+      $("voitto-xp").textContent = "+" + bonus + " ⭐  ja  +" + kolikkoBonus + " 🪙";
       naytaPeite("voitto");
     }, 1100);
   }
@@ -1044,6 +1285,112 @@
     naytaPeite("reppu");
   }
 
+  /* ================= kauppa ================= */
+
+  function avaaKauppa() {
+    renderoiKauppa();
+    naytaPeite("kauppa");
+  }
+
+  function renderoiKauppa() {
+    $("kauppa-saldo").textContent = "Kolikkosi: 🪙 " + tila.kolikot;
+    var lista = $("kauppa-lista");
+    lista.textContent = "";
+    (SISALTO.varusteet || []).forEach(function (vd) {
+      var kortti = luo("div", "kauppa-kortti" + (omistaa(vd.tunnus) ? " omistettu" : ""));
+      kortti.appendChild(luo("div", "kauppa-emoji", vd.emoji));
+      kortti.appendChild(luo("div", "kauppa-nimi", vd.nimi));
+      kortti.appendChild(luo("div", "kauppa-kuvaus", vd.kuvaus || ""));
+      if (omistaa(vd.tunnus)) {
+        kortti.appendChild(luo("div", "kauppa-omistettu", "✔ Omistat"));
+      } else {
+        var nappi = luo("button", "isonappi kauppa-osta", "OSTA — " + vd.hinta + " 🪙");
+        nappi.disabled = tila.kolikot < vd.hinta;
+        nappi.addEventListener("click", function () { osta(vd); });
+        kortti.appendChild(nappi);
+      }
+      lista.appendChild(kortti);
+    });
+  }
+
+  function osta(vd) {
+    if (omistaa(vd.tunnus) || tila.kolikot < vd.hinta) return;
+    tila.kolikot -= vd.hinta;
+    tila.varusteet.push(vd.tunnus);
+    if (vd.tyyppi === "kilpi") tila.kilvet = kilpiKatto(); // uusi kilpi tulee täytenä
+    AANET.kolikko();
+    AANET.fanfaari();
+    konfetti(14, ["🪙", "✨", vd.emoji.slice(0, 2)]);
+    toast(vd.nimi + " ostettu! " + vd.emoji);
+    tallenna();
+    paivitaHUD();
+    renderoiKauppa();
+  }
+
+  /* ================= raportti aikuiselle ================= */
+
+  function renderoiRaportti() {
+    var t = tila.tilastot;
+    var paivat = Object.keys(t.paivittain).sort();
+    var tehtavia = 0, ekalla = 0, apua = 0;
+    paivat.forEach(function (p) {
+      var d = t.paivittain[p];
+      tehtavia += d.tehtavia; ekalla += d.ekalla; apua += d.apua;
+    });
+    var prosentti = tehtavia ? Math.round(100 * ekalla / tehtavia) : 0;
+
+    var luvut = $("raportti-luvut");
+    luvut.textContent = "";
+    [
+      [String(tehtavia), "tehtävää luettu"],
+      [prosentti + " %", "heti oikein"],
+      [String(paivat.length), "pelipäivää"],
+      [tila.lukutaso + " / 8", "lukutaso nyt"]
+    ].forEach(function (pari) {
+      var chip = luo("div", "raportti-chip");
+      chip.appendChild(luo("div", "raportti-arvo", pari[0]));
+      chip.appendChild(luo("div", "raportti-nimi", pari[1]));
+      luvut.appendChild(chip);
+    });
+
+    // Viimeiset 7 päivää pylväinä
+    var rivi = $("raportti-paivat");
+    rivi.textContent = "";
+    var sarja = [];
+    var maksimi = 1;
+    for (var i = 6; i >= 0; i--) {
+      var pv = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+      var maara = t.paivittain[pv] ? t.paivittain[pv].tehtavia : 0;
+      maksimi = Math.max(maksimi, maara);
+      sarja.push({ pv: pv, maara: maara });
+    }
+    sarja.forEach(function (s) {
+      var pylvas = luo("div", "paiva-pylvas");
+      pylvas.appendChild(luo("div", "paiva-maara", s.maara ? String(s.maara) : ""));
+      var palkki = luo("div", "paiva-palkki");
+      palkki.style.height = (s.maara ? Math.round(8 + 46 * s.maara / maksimi) : 3) + "px";
+      pylvas.appendChild(palkki);
+      pylvas.appendChild(luo("div", "paiva-nimi", parseInt(s.pv.slice(8), 10) + "." + parseInt(s.pv.slice(5, 7), 10) + "."));
+      rivi.appendChild(pylvas);
+    });
+
+    // Toistuvasti hankalat palat
+    var hl = $("raportti-hankalat");
+    hl.textContent = "";
+    var avaimet = Object.keys(t.hankalat)
+      .sort(function (a, b) { return t.hankalat[b] - t.hankalat[a]; })
+      .slice(0, 8);
+    if (!avaimet.length) {
+      hl.appendChild(luo("p", "vanhemmat-vihje", "Ei toistuvia kompastuksia — hienoa! Tähän listautuvat palat, jotka ovat vaatineet useita yrityksiä."));
+    }
+    avaimet.forEach(function (avain) {
+      var r = luo("div", "hankala-rivi");
+      r.appendChild(luo("span", "hankala-teksti", avain));
+      r.appendChild(luo("span", "hankala-maara", t.hankalat[avain] + "×"));
+      hl.appendChild(r);
+    });
+  }
+
   /* ================= aikuisten paneeli ================= */
 
   function avaaVanhemmat() {
@@ -1054,6 +1401,7 @@
     $("asetus-taso").value = String(tila.lukutaso);
     $("omat-sanat-teksti").value = omatSanat.join("\n");
     renderoiOmatTarinat();
+    renderoiRaportti();
     naytaPeite("vanhemmat");
   }
 
@@ -1079,7 +1427,7 @@
   }
 
   function vaihdaValilehti(nimi) {
-    ["asetukset", "sanat", "tarinat", "ohjeet"].forEach(function (v) {
+    ["asetukset", "sanat", "tarinat", "raportti", "ohjeet"].forEach(function (v) {
       $("vali-" + v).classList.toggle("nakyy", v === nimi);
     });
     document.querySelectorAll("#vanhemmat nav button").forEach(function (b) {
@@ -1221,6 +1569,20 @@
 
     $("reppu-nappi").addEventListener("click", avaaReppu);
     $("reppu-sulje").addEventListener("click", function () { piilotaPeite("reppu"); });
+
+    $("kolikko-merkki").addEventListener("click", function () {
+      AANET.herata();
+      avaaKauppa();
+    });
+    $("kauppa-sulje").addEventListener("click", function () { piilotaPeite("kauppa"); });
+
+    $("raportti-tyhjenna").addEventListener("click", function () {
+      if (window.confirm("Tyhjennetäänkö tilastot? Tähdet, kolikot ja varusteet säilyvät.")) {
+        tila.tilastot = { paivittain: {}, hankalat: {} };
+        tallenna();
+        renderoiRaportti();
+      }
+    });
 
     // ⚙️ avautuu vain pitkällä painalluksella — lapset eivät eksy asetuksiin.
     var asetusAjastin = null;

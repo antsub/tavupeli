@@ -14,6 +14,17 @@ tietokoneella selaimessa, eikä vaadi asennuksia tai palvelinta.
   mikrofoninappia. Onnistunut luku tekee 10 vahinkoa, täydellinen luku
   putkeen voi olla **kriittinen osuma** (20). Kun HP on nolla, hirviö
   kukistuu ja reppuun tipahtaa hassu aarre.
+- **Kombot:** peräkkäiset puhtaat luvut kasvattavat 🔥-lukuputkea, joka
+  lisää vahinkoa. Kombolla 3 (ja siitä eteenpäin joka viidennellä)
+  laukeaa **KOMBOSYÖKSY**: palat luetaan putkeen yhteen hengenvetoon,
+  ja sarja pitenee joka onnistumisesta (3 → 5 palaa) — tahti kiihtyy.
+- **Hirviön vuoro:** välillä hirviö tekee hassun vastaiskun (heittää
+  limaa, pieraisee myrkkypilven...), jonka sankarin 🛡️-kilpi torjuu tai
+  sankari väistää. Vastaiskut ovat pelkkää teatteria — lukemisen
+  virheistä ei ikinä rankaista, ja kilvet korjautuvat voitoista.
+- **Kummituskauppa:** lukemisesta ja voitoista kertyy kolikoita 🪙,
+  joilla ostetaan varusteita: miekat lisäävät vahinkoa, kilvet kestoa,
+  ja Pierupossu-lemmikki juhlii voittoja omalla tavallaan. 💨
 - **Kirotun koulun alueet:** Kirottu luokkahuone → Varjoisa kirjasto →
   Kaaoksen ruokala → Karmiva liikuntasali → Hylätty ullakko. Alue
   vaihtuu lukutaidon karttuessa, ja uusi alue avataan ovi-siirtymällä.
@@ -71,6 +82,11 @@ nettiyhteys voi olla tarpeen.
 **Pelissä ilman koodia:** pidä ⚙️-nappia pohjassa hetki → *Omat sanat*
 tai *Omat tarinat*. Liitä teksti, tallenna — peli tavuttaa sanat itse
 ja jakaa tarinat virkkeiksi. Tallentuu laitteen omaan muistiin.
+
+**Raportti aikuiselle:** samasta ⚙️-paneelista löytyy *Raportti*-
+välilehti: montako tehtävää on luettu, kuinka moni meni heti oikein,
+viimeisten 7 päivän harjoittelumäärät ja lista paloista, jotka ovat
+toistuvasti vaatineet useita yrityksiä.
 
 **Tiedostoon (kaikille laitteille):** muokkaa tiedostoa
 [`js/sisalto.js`](js/sisalto.js). Sinne voi lisätä tavuja, sanoja,

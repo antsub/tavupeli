@@ -44,6 +44,7 @@
     <header id="ylapalkki">
       <div id="arvonimi-merkki" class="merkki">🧝 Tavutonttu</div>
       <div id="xp-merkki" class="merkki">⭐ 0</div>
+      <button id="kolikko-merkki" class="merkki" aria-label="Avaa kauppa">🪙 0</button>
       <div class="palkki-napit">
         <button id="reppu-nappi" class="kuvakenappi" aria-label="Aarrereppu">🎒</button>
         <button id="aani-nappi" class="kuvakenappi" aria-label="Äänet päälle tai pois">🔊</button>
@@ -55,11 +56,13 @@
 
       <div id="taistelu">
         <div id="alue-nimi"></div>
+        <div id="kombo-merkki"></div>
         <div id="puhekupla">Hirviö lähestyy!</div>
         <div id="sankari" aria-hidden="true">
           <img id="sankari-kuva" class="sankari-kuva" alt="">
           <span id="sankari-emoji">🦸</span>
         </div>
+        <div id="sankari-rivi" aria-hidden="true"></div>
         <div id="vastustaja-alue">
           <div id="vastustaja-kyltti">
             <div id="vastustaja-nimi">Hirviö</div>
@@ -155,6 +158,17 @@
     </div>
   </div>
 
+  <div id="kauppa" class="peite">
+    <div class="peite-kortti">
+      <h2>🏪 Kummituskauppa</h2>
+      <p id="kauppa-saldo" class="kauppa-saldo">Kolikkosi: 🪙 0</p>
+      <p class="pikkuteksti">Kolikoita saa lukemalla ja kukistamalla hirviöitä.
+        Miekat tekevät lisää vahinkoa ja kilvet kestävät enemmän!</p>
+      <div id="kauppa-lista"></div>
+      <button id="kauppa-sulje" class="isonappi">SULJE</button>
+    </div>
+  </div>
+
   <div id="mikki-ohje" class="peite">
     <div class="peite-kortti">
       <h2>🎤 Mikrofoni ei ole käytössä</h2>
@@ -176,6 +190,7 @@
         <button data-vali="asetukset" class="valittu">Asetukset</button>
         <button data-vali="sanat">Omat sanat</button>
         <button data-vali="tarinat">Omat tarinat</button>
+        <button data-vali="raportti">Raportti</button>
         <button data-vali="ohjeet">Ohjeet</button>
       </nav>
 
@@ -229,6 +244,17 @@
         <textarea id="oma-tarina-teksti" rows="7" placeholder="Olipa kerran vuori. Se oli tehty kakasta. ..."></textarea>
         <button id="oma-tarina-tallenna" class="isonappi">💾 Tallenna tarina</button>
         <div id="omat-tarinat-lista"></div>
+      </section>
+
+      <section id="vali-raportti" class="valilehti">
+        <p class="vanhemmat-vihje">Miten lukeminen on sujunut. "Heti oikein"
+          tarkoittaa ensimmäisellä yrityksellä ilman apuja luettuja.</p>
+        <div id="raportti-luvut"></div>
+        <h3 class="raportti-otsikko">Viimeiset 7 päivää</h3>
+        <div id="raportti-paivat"></div>
+        <h3 class="raportti-otsikko">Toistuvasti hankalat palat</h3>
+        <div id="raportti-hankalat"></div>
+        <button id="raportti-tyhjenna" class="linkkinappi vaara">🗑 Tyhjennä tilastot</button>
       </section>
 
       <section id="vali-ohjeet" class="valilehti">

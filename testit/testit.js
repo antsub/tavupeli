@@ -84,6 +84,20 @@ vaadi(!t3.ok, "lause: väärä sisältö hylätään");
 var t4 = VERTAILU.lauseOsuu("Kissa haisee pahalle.", "tota kissa haisee tosi pahalle");
 vaadi(t4.ok, "lause: ylimääräiset täytesanat sallitaan");
 
+// Kombosyöksyn jonovertailu
+vaadi(VERTAILU.jonoOsuu(["KA", "SU", "PI"], 0, "ka su pi", true) === 3,
+  "jono: kaikki kolme tavua putkeen");
+vaadi(VERTAILU.jonoOsuu(["KA", "SU", "PI"], 0, "ka su", true) === 2,
+  "jono: kaksi ekaa tavua");
+vaadi(VERTAILU.jonoOsuu(["KA", "SU", "PI"], 0, "talo auto", true) === 0,
+  "jono: väärät sanat eivät etene");
+vaadi(VERTAILU.jonoOsuu(["kakka", "pissa"], 0, "kakka pissa", false) === 2,
+  "jono: kaksi sanaa putkeen");
+vaadi(VERTAILU.jonoOsuu(["KAK", "KA"], 0, "kak", true) === 1,
+  "jono: sama sana ei kuittaa kahta palaa");
+vaadi(VERTAILU.jonoOsuu(["KA", "KO"], 1, "ka ko", true, 1) === 2,
+  "jono: aiemmin kuitattu token ohitetaan");
+
 /* ---------------- sisältö ---------------- */
 
 console.log("Sisältö:");
@@ -121,7 +135,7 @@ var kaytetyt = {};
   kaytetyt[m.slice(3, -2)] = true;
 });
 // dynaamisesti muodostetut id:t
-["vali-asetukset", "vali-sanat", "vali-tarinat", "vali-ohjeet"].forEach(function (id) {
+["vali-asetukset", "vali-sanat", "vali-tarinat", "vali-raportti", "vali-ohjeet"].forEach(function (id) {
   kaytetyt[id] = true;
 });
 Object.keys(kaytetyt).forEach(function (id) {

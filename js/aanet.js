@@ -115,6 +115,19 @@ var AANET = (function () {
       });
     },
 
+    // Kilpi torjuu hirviön heiton.
+    torjunta: function () {
+      kohina(0, 0.09, 2400, 0.3);
+      piip(988, 0.04, 0.12, "triangle", 0.22);
+      piip(740, 0.13, 0.16, "triangle", 0.18);
+    },
+
+    // Kolikot kilisevät.
+    kolikko: function () {
+      piip(1319, 0, 0.09, "square", 0.1);
+      piip(1568, 0.08, 0.14, "square", 0.1);
+    },
+
     // Tietenkin. 💨
     pieru: function () {
       var kesto = 0.45 + Math.random() * 0.35;

@@ -90,6 +90,41 @@ var VERTAILU = (function () {
     return sanaOsuu(odotettu, sanat.join(""));
   }
 
+  // Vertaa tavua yhteen kuultuun sanaan (ilman koko tekstin läpikäyntiä).
+  function tavuTokenOsuu(tavu, token) {
+    tavu = normalisoi(tavu).replace(/ /g, "");
+    if (!tavu || !token) return false;
+    if (token === tavu) return true;
+    if (tavu.length >= 2 && token.indexOf(tavu) === 0) return true;
+    return token[0] === tavu[0] && etaisyys(tavu, token) <= 1;
+  }
+
+  // Kombosyöksy ja palat: montako osaa listasta (alkaen kohdasta 'alku')
+  // kuullusta tekstistä löytyy PERÄKKÄIN. Palauttaa uuden indeksin.
+  // Jokainen kuultu sana voi kuitata vain yhden osan, joten "KAK" ei
+  // vahingossa kuittaa sekä osaa "KAK" että osaa "KA".
+  function jonoOsuu(osat, alku, kuultuTeksti, tavuja, ohitaTokenit) {
+    var tokenit = sanalista(kuultuTeksti);
+    var i = alku;
+    var t = ohitaTokenit || 0;
+    while (i < osat.length) {
+      var loytyi = false;
+      for (var j = t; j < tokenit.length; j++) {
+        if (tavuja) {
+          if (tavuTokenOsuu(osat[i], tokenit[j])) { loytyi = true; t = j + 1; break; }
+        } else {
+          if (sanaOsuu(osat[i], tokenit[j])) { loytyi = true; t = j + 1; break; }
+          if (j + 1 < tokenit.length && sanaOsuu(osat[i], tokenit[j] + tokenit[j + 1])) {
+            loytyi = true; t = j + 2; break;
+          }
+        }
+      }
+      if (!loytyi) break;
+      i++;
+    }
+    return i;
+  }
+
   // Lause tai tarinan virke: verrataan sana kerrallaan järjestyksessä.
   // Palauttaa { ok, osumat: [true/false per sana], osuus }
   function lauseOsuu(odotettuLause, kuultuTeksti) {
@@ -128,6 +163,8 @@ var VERTAILU = (function () {
     etaisyys: etaisyys,
     sanaOsuu: sanaOsuu,
     tavuOsuu: tavuOsuu,
+    tavuTokenOsuu: tavuTokenOsuu,
+    jonoOsuu: jonoOsuu,
     kokoSanaOsuu: kokoSanaOsuu,
     lauseOsuu: lauseOsuu
   };

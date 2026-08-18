@@ -226,12 +226,70 @@ button {
 #sankari {
   position: absolute;
   left: 5%;
-  bottom: 6px;
+  bottom: 24px;
   font-size: clamp(3rem, 11vmin, 5rem);
   filter: drop-shadow(0 4px 4px rgba(0,0,0,0.45));
   z-index: 2;
   line-height: 1;
 }
+
+/* Kilvet ja varusteet sankarin jalkojen alla */
+#sankari-rivi {
+  position: absolute;
+  left: 4%;
+  bottom: 5px;
+  z-index: 2;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+  pointer-events: none;
+}
+
+#sankari.vaistohyppy { animation: vaistohyppy 0.7s ease; }
+
+@keyframes vaistohyppy {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-34px) rotate(-10deg); }
+  55% { transform: translateY(0); }
+  70% { transform: translateY(-10px); }
+}
+
+.kilpi-valays {
+  position: absolute;
+  z-index: 6;
+  font-size: 2.6rem;
+  transform: translate(-50%, -50%);
+  animation: kilpivalays 0.8s ease forwards;
+  pointer-events: none;
+  filter: drop-shadow(0 0 14px #8fb7ff);
+}
+
+@keyframes kilpivalays {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }
+  30% { transform: translate(-50%, -50%) scale(1.5); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+/* Kombomittari */
+#kombo-merkki {
+  display: none;
+  position: absolute;
+  left: 8px;
+  top: 42%;
+  z-index: 3;
+  background: linear-gradient(180deg, #ff8c42, #e2711d);
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  padding: 5px 11px;
+  border-radius: 999px;
+  box-shadow: 0 0 14px rgba(255, 140, 66, 0.55);
+  pointer-events: none;
+}
+
+#kombo-merkki.nakyy { display: block; }
+#kombo-merkki.poksahdus { animation: poksahdus 0.5s ease; }
 
 .sankari-kuva {
   display: none;
@@ -850,6 +908,106 @@ button {
 .aarre-rivi-nimi { flex: 1; font-weight: bold; font-size: 0.95rem; }
 .aarre-rivi-maara { font-weight: bold; opacity: 0.7; }
 .reppu-tyhja { opacity: 0.75; }
+
+/* kauppa */
+
+.kauppa-saldo { font-weight: 800; font-size: 1.15rem; color: var(--keltainen); }
+
+#kauppa-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.kauppa-kortti {
+  background: #3a3746;
+  border: 2px solid var(--paneeli-reuna);
+  border-radius: 16px;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.kauppa-kortti.omistettu { border-color: var(--vihrea); }
+.kauppa-emoji { font-size: 2rem; }
+.kauppa-nimi { font-weight: bold; font-size: 0.95rem; }
+.kauppa-kuvaus { font-size: 0.75rem; opacity: 0.75; line-height: 1.35; flex: 1; }
+.kauppa-omistettu { font-weight: bold; color: var(--vihrea); }
+
+.kauppa-osta {
+  font-size: 0.85rem;
+  padding: 10px 14px;
+  min-height: 0;
+}
+
+.kauppa-osta:disabled {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+/* raportti */
+
+.raportti-otsikko { font-size: 1rem; margin-top: 4px; }
+
+#raportti-luvut {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+}
+
+.raportti-chip {
+  background: #3a3746;
+  border-radius: 12px;
+  padding: 10px 6px;
+  text-align: center;
+}
+
+.raportti-arvo { font-size: 1.3rem; font-weight: 800; color: var(--keltainen); }
+.raportti-nimi { font-size: 0.72rem; opacity: 0.75; }
+
+#raportti-paivat {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 2px;
+}
+
+.paiva-pylvas {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+}
+
+.paiva-maara { font-size: 0.7rem; opacity: 0.8; min-height: 1em; }
+
+.paiva-palkki {
+  width: 70%;
+  max-width: 34px;
+  background: linear-gradient(180deg, #63d471, #2f9e44);
+  border-radius: 6px 6px 2px 2px;
+}
+
+.paiva-nimi { font-size: 0.65rem; opacity: 0.6; }
+
+.hankala-rivi {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  background: #3a3746;
+  border-radius: 10px;
+  padding: 7px 12px;
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+
+.hankala-teksti { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hankala-maara { font-weight: 800; color: var(--korostus); flex-shrink: 0; }
 
 /* vanhempien paneeli */
 

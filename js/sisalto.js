@@ -327,6 +327,31 @@ var SISALTO = {
   ],
 
   /* ------------------------------------------------------------------
+     VARUSTEET — ostetaan kaupasta kolikoilla 🪙.
+       tyyppi "miekka": vahinko-bonus lisätään jokaiseen osumaan
+       tyyppi "kilpi":  kilpiMax nostaa kilpien enimmäismäärää
+       muut tyypit ovat hauskoja koristeita (näkyvät sankarin vierellä)
+     ------------------------------------------------------------------ */
+  varusteet: [
+    { tunnus: "puumiekka", nimi: "Puumiekka", emoji: "🪵🗡️", hinta: 15,
+      tyyppi: "miekka", vahinko: 2, kuvaus: "Parempi kuin ei mitään. Roiskeet irtoaa!" },
+    { tunnus: "tavumiekka", nimi: "Tavumiekka", emoji: "🗡️✨", hinta: 40,
+      tyyppi: "miekka", vahinko: 5, kuvaus: "Hehkuu aina kun luet oikein." },
+    { tunnus: "liekkimiekka", nimi: "Liekkimiekka", emoji: "🔥🗡️", hinta: 90,
+      tyyppi: "miekka", vahinko: 8, kuvaus: "Legendaarinen. Paistaa myös lättyjä." },
+    { tunnus: "peltikilpi", nimi: "Peltikilpi", emoji: "🛡️", hinta: 20,
+      tyyppi: "kilpi", kilpiMax: 4, kuvaus: "Kolisee hienosti. +1 kilpi." },
+    { tunnus: "lohikaarmekilpi", nimi: "Lohikäärmekilpi", emoji: "🐉🛡️", hinta: 60,
+      tyyppi: "kilpi", kilpiMax: 5, kuvaus: "Pelottaa hirviöitä. +2 kilpeä." },
+    { tunnus: "sankariviitta", nimi: "Sankariviitta", emoji: "🧣", hinta: 25,
+      tyyppi: "asu", kuvaus: "Hulmuaa mahtavasti vaikka ei tuulisi." },
+    { tunnus: "pierupossu", nimi: "Pierupossu", emoji: "🐷", hinta: 35,
+      tyyppi: "lemmikki", kuvaus: "Uskollinen kaveri, joka juhlii voittoja... omalla tavallaan. 💨" },
+    { tunnus: "kultakruunu", nimi: "Kultakruunu", emoji: "👑", hinta: 120,
+      tyyppi: "asu", kuvaus: "Lukusankarien kuninkaallinen päähine." }
+  ],
+
+  /* ------------------------------------------------------------------
      ARVONIMET — sankarin arvonimi nousee tähtien (XP) myötä.
      raja = montako tähteä arvonimeen vaaditaan.
      ------------------------------------------------------------------ */
@@ -388,6 +413,28 @@ var SISALTO = {
     "PRÖÖÖT... hirviö tyhjeni kuin ilmapallo! 🎈",
     "Hirviö pakeni häntä koipien välissä! 🏃",
     "Hirviö suli kuplivaksi lätäköksi! 🫠"
+  ],
+
+  // Hirviön vastaisku (aina hassu, kilpi torjuu tai sankari väistää)
+  hyokkaysHuudot: [
+    "heittää limaklöntin!",
+    "sylkäisee jättirään!",
+    "pieraisee myrkkypilven!",
+    "viskaa homeisen eväsleivän!",
+    "heittää märän lattiarätin!",
+    "sinkoaa kumitossun!"
+  ],
+
+  torjuntaHuudot: [
+    "TORJUTTU! Kilpi hohtaa! 🛡️",
+    "KILPI OTTI KOPIN! 🛡️",
+    "PLONK! Kilpi kesti! 🛡️"
+  ],
+
+  vaistoHuudot: [
+    "Väistit viime hetkellä! 😅",
+    "HUTI! Hirviö osui omaan varpaaseensa! 🤣",
+    "Ohi meni! Hirviö nolostui. 😳"
   ],
 
   // Vinkkejä tehtävän alussa
