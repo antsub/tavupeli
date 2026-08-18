@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="description" content="Tavuritari — hauska suomenkielinen lukupeli, jossa kukistetaan hirviöitä lukemalla tavuja, sanoja ja hulluja satuja ääneen.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Tavuritari">
+  <meta name="theme-color" content="#1b1a22">
+  <title>Tavuritari — lue ääneen ja kukista hirviöt!</title>
+  <link rel="manifest" href="manifest.webmanifest" data-pwa>
+  <link rel="apple-touch-icon" href="icons/ikoni-180.png" data-pwa>
+  <link rel="icon" type="image/png" href="icons/ikoni-192.png" data-pwa>
+  <link rel="stylesheet" href="tyyli.css">
+</head>
+<body>
+
+  <!-- ======================= ALKURUUTU ======================= -->
+  <section id="alku" class="ruutu nakyy">
+    <div class="alku-sisalto">
+      <div class="logo-morko morko">
+        <div class="morko-vartalo">
+          <div class="morko-silmat">
+            <div class="morko-silma"><div class="morko-pupilli"></div></div>
+            <div class="morko-silma"><div class="morko-pupilli"></div></div>
+          </div>
+          <div class="morko-suu"></div>
+        </div>
+      </div>
+      <h1>TAVU<span>RITARI</span></h1>
+      <p class="alku-kuvaus">Lue ääneen ja kukista hassut hirviöt! ⚔️💩</p>
+      <p class="alku-ohje">Valitse sankarisi:</p>
+      <div id="avatar-rivi"></div>
+      <button id="pelaa-nappi" class="isonappi">▶ PELAA</button>
+      <p id="tuki-ilmoitus" class="pikkuteksti"></p>
+      <button id="alku-aikuisille" class="linkkinappi">⚙️ Aikuisille: asetukset ja omat tarinat</button>
+    </div>
+  </section>
+
+  <!-- ======================= PELIRUUTU ======================= -->
+  <section id="peli" class="ruutu">
+
+    <header id="ylapalkki">
+      <div id="arvonimi-merkki" class="merkki">🧝 Tavutonttu</div>
+      <div id="xp-merkki" class="merkki">⭐ 0</div>
+      <div class="palkki-napit">
+        <button id="reppu-nappi" class="kuvakenappi" aria-label="Aarrereppu">🎒</button>
+        <button id="aani-nappi" class="kuvakenappi" aria-label="Äänet päälle tai pois">🔊</button>
+        <button id="asetus-nappi" class="kuvakenappi" aria-label="Aikuisten asetukset (pidä pohjassa)">⚙️</button>
+      </div>
+    </header>
+
+    <main id="pelialue">
+
+      <div id="taistelu">
+        <div id="alue-nimi"></div>
+        <div id="puhekupla">Hirviö lähestyy!</div>
+        <div id="sankari" aria-hidden="true">
+          <img id="sankari-kuva" class="sankari-kuva" alt="">
+          <span id="sankari-emoji">🦸</span>
+        </div>
+        <div id="vastustaja-alue">
+          <div id="vastustaja-kyltti">
+            <div id="vastustaja-nimi">Hirviö</div>
+            <div id="vastustaja-hp">
+              <div class="hp-palkki"><div id="hp-tayte"></div></div>
+              <div id="hp-teksti"></div>
+            </div>
+          </div>
+          <div id="vastustaja" class="morko" data-mieli="perus">
+            <img id="vastustaja-kuva" class="morko-kuva" alt="">
+            <div class="morko-vartalo">
+              <div class="morko-silmat"></div>
+              <div class="morko-suu"></div>
+            </div>
+            <div id="vastustaja-rekvisiitta" class="morko-rekvisiitta"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tehtava-alue">
+        <div id="tehtava-otsikko">Sano tavu ääneen:</div>
+        <div id="tehtava-kortti">
+          <div id="tehtava-teksti"></div>
+          <div id="tarina-pisteet"></div>
+        </div>
+        <div id="kuultu"></div>
+      </div>
+
+    </main>
+
+    <footer id="ohjaimet">
+      <button id="kuuntele-nappi" class="apunappi" aria-label="Kuuntele malli">🔊<br>Kuuntele</button>
+      <button id="mikki-nappi" aria-label="Aloita puhuminen">
+        <span class="mikki-kuva">🎤</span>
+        <span id="mikki-teksti">SANO!</span>
+      </button>
+      <div id="aikuis-napit" class="piilossa">
+        <button id="aikuinen-oikein" class="isonappi vihrea">😃 MENI HYVIN</button>
+        <button id="aikuinen-uudestaan" class="isonappi keltainen">🔁 UUDESTAAN</button>
+      </div>
+      <button id="ohita-nappi" class="apunappi" aria-label="Ohita tehtävä">➡️<br>Ohita</button>
+      <button id="pikku-oikein" class="haamunappi" aria-label="Aikuinen: meni oikein">✔ aikuinen:<br>meni oikein</button>
+    </footer>
+
+  </section>
+
+  <!-- ======================= PEITTEET ======================= -->
+
+  <div id="voitto" class="peite">
+    <div class="peite-kortti juhla">
+      <h2 id="voitto-otsikko">Hirviö kukistui!</h2>
+      <div id="aarre-emoji" class="jatti-emoji">🧻✨</div>
+      <p id="aarre-nimi">Sait aarteen!</p>
+      <p id="voitto-xp" class="voitto-xp">+2 ⭐</p>
+      <button id="voitto-jatka" class="isonappi">JATKA SEIKKAILUA ⚔️</button>
+    </div>
+  </div>
+
+  <div id="arvonimi-juhla" class="peite">
+    <div class="peite-kortti juhla">
+      <h2>🎺 UUSI ARVONIMI! 🎺</h2>
+      <div id="arvonimi-emoji" class="jatti-emoji">⚔️</div>
+      <p id="arvonimi-teksti">Olet nyt TAVURITARI!</p>
+      <button id="arvonimi-jatka" class="isonappi">MAHTAVAA! ▶</button>
+    </div>
+  </div>
+
+  <div id="aluevaihto" class="peite">
+    <div class="peite-kortti juhla">
+      <h2>🗝️ UUSI ALUE LÖYTYI!</h2>
+      <div id="aluevaihto-emoji" class="jatti-emoji">🚪</div>
+      <img id="aluevaihto-ovi" class="ovi-kuva" alt="">
+      <p id="aluevaihto-otsikko" class="aluevaihto-otsikko">Varjoisa kirjasto</p>
+      <p id="aluevaihto-kuvaus" class="pikkuteksti"></p>
+      <button id="aluevaihto-jatka" class="isonappi">ASTU SISÄÄN ⚔️</button>
+    </div>
+  </div>
+
+  <div id="tarinavalinta" class="peite">
+    <div class="peite-kortti">
+      <h2>📚 Valitse pomotaistelu!</h2>
+      <p class="pikkuteksti">Lue hullu satu virke kerrallaan ja kukista pomo.</p>
+      <div id="tarina-lista"></div>
+      <button id="tarina-takaisin" class="linkkinappi">⬅ Haluan muita tehtäviä</button>
+    </div>
+  </div>
+
+  <div id="reppu" class="peite">
+    <div class="peite-kortti">
+      <h2>🎒 Aarrereppu</h2>
+      <div id="reppu-lista"></div>
+      <button id="reppu-sulje" class="isonappi">SULJE</button>
+    </div>
+  </div>
+
+  <div id="mikki-ohje" class="peite">
+    <div class="peite-kortti">
+      <h2>🎤 Mikrofoni ei ole käytössä</h2>
+      <p>Peli ei saanut lupaa kuunnella puhetta, joten se toimii nyt
+         <strong>aikuinen kuuntelee</strong> -tilassa: aikuinen kuuntelee
+         lukemisen ja painaa 😃- tai 🔁-nappia.</p>
+      <p class="pikkuteksti">Luvan saa takaisin Safarin asetuksista:
+         aA-kuvake osoiterivillä → Verkkosivuston asetukset → salli Mikrofoni,
+         tai iPadin/iPhonen Asetukset → Safari. Puheentunnistus vaatii myös,
+         että peli avataan https-osoitteesta.</p>
+      <button id="mikki-ohje-sulje" class="isonappi">SELVÄ, JATKETAAN!</button>
+    </div>
+  </div>
+
+  <div id="vanhemmat" class="peite">
+    <div class="peite-kortti vanhemmat-kortti">
+      <h2>⚙️ Aikuisten nurkkaus</h2>
+      <nav>
+        <button data-vali="asetukset" class="valittu">Asetukset</button>
+        <button data-vali="sanat">Omat sanat</button>
+        <button data-vali="tarinat">Omat tarinat</button>
+        <button data-vali="ohjeet">Ohjeet</button>
+      </nav>
+
+      <section id="vali-asetukset" class="valilehti nakyy">
+        <label class="rivi">
+          <input type="checkbox" id="asetus-aanet" checked>
+          <span>Ääniefektit</span>
+        </label>
+        <label class="rivi">
+          <input type="checkbox" id="asetus-isot" checked>
+          <span>ISOT KIRJAIMET (pois = pienet kirjaimet)</span>
+        </label>
+        <label class="rivi">
+          <input type="checkbox" id="asetus-aikuistila">
+          <span>Aikuinen kuuntelee -tila (ei puheentunnistusta: aikuinen
+            arvioi lukemisen napeilla)</span>
+        </label>
+        <label class="rivi">
+          <span>Lukutaso nyt:</span>
+          <select id="asetus-taso">
+            <option value="1">1 — lyhyet tavut (KA)</option>
+            <option value="2">2 — isot tavut (KAK)</option>
+            <option value="3">3 — sanat tavuittain (KAK-KA)</option>
+            <option value="4">4 — pitkät sanat tavuittain</option>
+            <option value="5">5 — sanat ilman tavuviivoja</option>
+            <option value="6">6 — lyhyet lauseet</option>
+            <option value="7">7 — pitkät lauseet</option>
+            <option value="8">8 — sadut (pomotaistelut)</option>
+          </select>
+        </label>
+        <p class="vanhemmat-vihje">Taso mukautuu itsestään pelin aikana:
+          kolme sujuvaa suoritusta nostaa tasoa, kaksi hankalaa laskee.
+          Tästä voi silti hypätä suoraan haluttuun tasoon.</p>
+        <button id="nollaa-nappi" class="linkkinappi vaara">🗑 Nollaa edistyminen</button>
+      </section>
+
+      <section id="vali-sanat" class="valilehti">
+        <p class="vanhemmat-vihje">Kirjoita omia sanoja, yksi per rivi.
+          Peli tavuttaa ne itse — tai merkitse tavut viivoilla (kis-sa).
+          Sanat sekoittuvat pelin omiin sanoihin.</p>
+        <textarea id="omat-sanat-teksti" rows="8" placeholder="kakkakäärme&#10;pissapossu&#10;mahtimainen"></textarea>
+        <button id="omat-sanat-tallenna" class="isonappi">💾 Tallenna sanat</button>
+      </section>
+
+      <section id="vali-tarinat" class="valilehti">
+        <p class="vanhemmat-vihje">Kirjoita tai liitä oma hullu satu.
+          Peli jakaa sen virkkeisiin pisteiden kohdalta — jokainen virke on
+          yksi osuma pomoon. Lyhyet virkkeet (3–6 sanaa) toimivat parhaiten.</p>
+        <input id="oma-tarina-nimi" type="text" placeholder="Tarinan nimi (esim. Kakkavuori)">
+        <input id="oma-tarina-emoji" type="text" placeholder="Tunnuskuva-emoji (esim. 💩🗻)">
+        <textarea id="oma-tarina-teksti" rows="7" placeholder="Olipa kerran vuori. Se oli tehty kakasta. ..."></textarea>
+        <button id="oma-tarina-tallenna" class="isonappi">💾 Tallenna tarina</button>
+        <div id="omat-tarinat-lista"></div>
+      </section>
+
+      <section id="vali-ohjeet" class="valilehti">
+        <p><strong>Näin peli toimii:</strong> lapsi lukee näytön "loitsun"
+          ääneen ja painaa mikrofoninappia. Puheentunnistus tarkistaa
+          lukemisen — jokainen onnistunut luku on osuma hirviöön.</p>
+        <p><strong>Vaikeus mukautuu itsestään:</strong> jos lukeminen sujuu,
+          tehtävät vaikeutuvat (tavut → sanat → lauseet → sadut). Jos tulee
+          hankalaa, peli helpottaa ja pilkkoo tehtävän paloihin. Sankaritaso
+          ja tähdet eivät koskaan laske.</p>
+        <p><strong>Puheentunnistus</strong> vaatii mikrofoniluvan ja
+          https-osoitteen. Se on tarkoituksella armollinen — ja aikuinen voi
+          aina hyväksyä suorituksen ✔-napilla, jos kone kuuli väärin.</p>
+        <p><strong>Ilman mikrofonia</strong> voi pelata "aikuinen kuuntelee"
+          -tilassa: aikuinen kuuntelee ja painaa 😃 tai 🔁.</p>
+        <p class="pikkuteksti">Lisää sisältöä voi tehdä tässä paneelissa tai
+          muokkaamalla tiedostoa <code>js/sisalto.js</code> — sinne voi
+          lisätä myös hirviöitä, aarteita ja vitsejä.</p>
+      </section>
+
+      <button id="vanhemmat-sulje" class="isonappi">✔ VALMIS</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <div id="konfetti-alusta" aria-hidden="true"></div>
+
+  <script src="js/tavutus.js"></script>
+  <script src="js/vertailu.js"></script>
+  <script src="js/sisalto.js"></script>
+  <script src="js/aanet.js"></script>
+  <script src="js/puhe.js"></script>
+  <script src="js/peli.js"></script>
+  <script>
+    // Service worker vain kun peli on omalla palvelimellaan (ei yhden
+    // tiedoston versiossa). Mahdollistaa pelaamisen ilman nettiyhteyttä.
+    if (!window.YKSITIEDOSTO && "serviceWorker" in navigator && location.protocol === "https:") {
+      navigator.serviceWorker.register("sw.js").catch(function () {});
+    }
+  </script>
+</body>
+</html>
