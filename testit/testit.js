@@ -109,7 +109,7 @@ SISALTO.vastustajat.forEach(function (v) {
       "hirviön " + v.nimi + " alue '" + v.alue + "' on olemassa");
   }
 });
-for (var taso = 1; taso <= 8; taso++) {
+for (var taso = 1; taso <= 10; taso++) {
   var loytyi = SISALTO.alueet.some(function (a) { return a.tasot.indexOf(taso) >= 0; });
   vaadi(loytyi, "lukutasolle " + taso + " on alue");
 }
@@ -120,6 +120,53 @@ SISALTO.tarinat.forEach(function (t) {
 vaadi(SISALTO.tavut.length >= 20, "tavuja on riittävästi");
 vaadi(SISALTO.sanat.length >= 20, "sanoja on riittävästi");
 vaadi(SISALTO.lauseet.length >= 10, "lauseita on riittävästi");
+
+/* ---------------- P0: uudet sisällöt ja säännöt ---------------- */
+
+console.log("P0-sisältö:");
+
+// Kirjaimet
+vaadi(SISALTO.kirjaimet.length >= 15, "kirjaimia on riittävästi");
+SISALTO.kirjaimet.forEach(function (k) {
+  vaadi(!!k.kirjain && !!k.aanne && !!k.esimerkki,
+    "kirjaimella " + k.kirjain + " on äänne ja esimerkki");
+  vaadi(k.esimerkki[0].toUpperCase() === k.kirjain.toUpperCase(),
+    "esimerkkisana '" + k.esimerkki + "' alkaa kirjaimella " + k.kirjain);
+});
+
+// Höpölöitsyt eli epäsanat
+vaadi(SISALTO.hopoloitsut.length >= 20, "höpölöitsyjä on riittävästi");
+var oikeatSanat = {};
+SISALTO.sanat.forEach(function (s) { oikeatSanat[s.toLowerCase()] = true; });
+SISALTO.hopoloitsut.forEach(function (h) {
+  vaadi(!oikeatSanat[h.toLowerCase()], "höpölöitsy '" + h + "' ei ole oikea sana listalla");
+  vaadi(/^[A-ZÅÄÖ]+$/.test(h), "höpölöitsy '" + h + "' on kirjoitettu isoilla kirjaimilla");
+  vaadi(TAVUTUS.tavuta(h).length >= 2, "höpölöitsy '" + h + "' tavuttuu");
+});
+
+// Höpölöitsyjä löytyy kaikkiin sanatehtävien tavumääriin
+[[2, 2], [3, 99]].forEach(function (raja) {
+  var sopivia = SISALTO.hopoloitsut.filter(function (h) {
+    var m = TAVUTUS.tavuta(h).length;
+    return m >= raja[0] && m <= raja[1];
+  });
+  vaadi(sopivia.length >= 3,
+    "höpölöitsyjä löytyy tavumäärälle " + raja[0] + "-" + raja[1] + " (" + sopivia.length + ")");
+});
+
+// Sekaannusparit
+vaadi(SISALTO.sekaannusparit.length >= 5, "sekaannuspareja on riittävästi");
+SISALTO.sekaannusparit.forEach(function (ryhma) {
+  vaadi(ryhma.length >= 2, "sekaannusryhmässä on vähintään 2 kirjainta");
+});
+
+// Epäsanan lisätoleranssi vertailussa
+vaadi(!VERTAILU.kokoSanaOsuu("pömppeli", "römpelit nyt"),
+  "tiukka vertailu hylkää kolmen virheen päässä olevan arvauksen");
+vaadi(VERTAILU.kokoSanaOsuu("pömppeli", "römpelit nyt", true),
+  "höpölöitsyn löysä vertailu hyväksyy tunnistimen lähiarvauksen");
+vaadi(!VERTAILU.kokoSanaOsuu("pömppeli", "banaani", true),
+  "löysäkään vertailu ei hyväksy täysin eri sanaa");
 
 /* ---------------- HTML:n ja pelikoodin vastaavuus ---------------- */
 
@@ -135,7 +182,8 @@ var kaytetyt = {};
   kaytetyt[m.slice(3, -2)] = true;
 });
 // dynaamisesti muodostetut id:t
-["vali-asetukset", "vali-sanat", "vali-tarinat", "vali-raportti", "vali-ohjeet"].forEach(function (id) {
+["vali-asetukset", "vali-sanat", "vali-tarinat", "vali-raportti",
+ "vali-mikkitesti", "vali-ohjeet"].forEach(function (id) {
   kaytetyt[id] = true;
 });
 Object.keys(kaytetyt).forEach(function (id) {

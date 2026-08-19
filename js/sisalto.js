@@ -17,6 +17,9 @@
                    kohdalta — yksi virke luetaan kerrallaan.
    5. VASTUSTAJAT  hirviöt joita vastaan taistellaan. hp = montako
                    osumaa (luettua tehtävää) hirviön kukistaminen vaatii.
+   6. KIRJAIMET .. pelin alin taso: peli sanoo äänteen, lapsi napauttaa
+                   oikean kirjaimen (ei tarvitse mikrofonia).
+   7. HÖPÖLÖITSYT  hassuja epäsanoja, joita ei voi lukea ulkomuistista.
 
    💡 Sisältöä voi lisätä myös suoraan pelissä ilman koodia:
       pidä pelin ⚙️-nappia pohjassa → "Omat sanat" / "Omat tarinat".
@@ -26,6 +29,70 @@
    ===================================================================== */
 
 var SISALTO = {
+
+  /* ------------------------------------------------------------------
+     KIRJAIMET — pelin alin taso: peli sanoo äänteen, lapsi napauttaa
+     oikean kirjaimen. Tämä on lukemisen perusta (kirjain–äänne-yhteys)
+     eikä vaadi mikrofonia lainkaan.
+       kirjain ... näytettävä kirjain
+       aanne ..... miten peli sanoo äänteen ("mmm")
+       esimerkki . tuttu sana jolla äänne havainnollistetaan
+     ------------------------------------------------------------------ */
+  kirjaimet: [
+    { kirjain: "A", aanne: "aaa",  esimerkki: "AUTO" },
+    { kirjain: "I", aanne: "iii",  esimerkki: "ISI" },
+    { kirjain: "O", aanne: "ooo",  esimerkki: "OMENA" },
+    { kirjain: "U", aanne: "uuu",  esimerkki: "UKKI" },
+    { kirjain: "E", aanne: "eee",  esimerkki: "ETANA" },
+    { kirjain: "Y", aanne: "yyy",  esimerkki: "YSTÄVÄ" },
+    { kirjain: "Ä", aanne: "äää",  esimerkki: "ÄITI" },
+    { kirjain: "Ö", aanne: "ööö",  esimerkki: "ÖTÖKKÄ" },
+    { kirjain: "M", aanne: "mmm",  esimerkki: "MUMMO" },
+    { kirjain: "N", aanne: "nnn",  esimerkki: "NENÄ" },
+    { kirjain: "S", aanne: "sss",  esimerkki: "SIILI" },
+    { kirjain: "L", aanne: "lll",  esimerkki: "LEIPÄ" },
+    { kirjain: "R", aanne: "rrr",  esimerkki: "RAKETTI" },
+    { kirjain: "V", aanne: "vvv",  esimerkki: "VESSA" },
+    { kirjain: "K", aanne: "k, k, k", esimerkki: "KAKKA" },
+    { kirjain: "T", aanne: "t, t, t", esimerkki: "TALO" },
+    { kirjain: "P", aanne: "p, p, p", esimerkki: "PISSA" },
+    { kirjain: "H", aanne: "hhh",  esimerkki: "HAUKI" },
+    { kirjain: "J", aanne: "jjj",  esimerkki: "JÄÄTELÖ" },
+    { kirjain: "D", aanne: "d, d, d", esimerkki: "DINOSAURUS" },
+    { kirjain: "B", aanne: "b, b, b", esimerkki: "BANAANI" },
+    { kirjain: "G", aanne: "g, g, g", esimerkki: "GORILLA" }
+  ],
+
+  /* ------------------------------------------------------------------
+     SEKAANNUSPARIT — kirjaimet jotka menevät helposti sekaisin.
+     Peli tarjoaa näitä vääriksi vaihtoehdoiksi valintatehtävissä, jotta
+     harjoitus osuu juuri siihen mikä on vaikeaa. Voit lisätä ryhmiä.
+     ------------------------------------------------------------------ */
+  sekaannusparit: [
+    ["b", "d", "p"], ["m", "n"], ["u", "y"], ["a", "ä"], ["o", "ö"],
+    ["i", "j"], ["k", "g"], ["t", "d"], ["s", "z"], ["v", "w"],
+    ["e", "ä"], ["h", "n"], ["r", "l"]
+  ],
+
+  /* ------------------------------------------------------------------
+     HÖPÖLÖITSYT — hassuja epäsanoja, joita ei ole olemassakaan!
+     Nämä ovat tärkeitä: oikean sanan lapsi oppii pian tunnistamaan
+     ulkoa kuvana, mutta höpölöitsyn on pakko lukea kirjain kirjaimelta.
+     Juuri sitä lukutaito on. Ja ne kuulostavat hauskoilta taikasanoilta.
+     ------------------------------------------------------------------ */
+  hopoloitsut: [
+    // Lyhyet
+    "PÖMPPÖ", "TIPSU", "RÖHKÄ", "NUPPA", "JYNKKY", "SUHNA",
+    "VUPSA", "HÖRPPÖ", "MURKKO", "KÄPSÄ", "TÖRRÖ", "RÄTSÄ",
+    // Keskipitkät
+    "PÖMPPELI", "KRAPSUTI", "TIPSUKKA", "RÖHKÄLÖ", "NUPPELI",
+    "LÖNKKYRÄ", "PÄTKÄMÖ", "SUHNAKKA", "VUPSAHTI", "HÖRPPÖLÖ",
+    "MURKKELO", "KÄPSÄKKÄ", "TÖRRÖTIN", "RÄTSÄKKÄ", "JYNKKÄLÖ",
+    "MÖLINKKI", "KUPSAHTI", "NIRSKUTA",
+    // Pitkät
+    "PÖMPPELIKKÄ", "KRAPSUTELLI", "TIPSUKAINEN", "HÖRPPÖLÖINEN",
+    "RÄTSÄKKÄLÄ", "MURKKELOINEN"
+  ],
 
   /* ------------------------------------------------------------------
      TAVUT — lyhyet (2 kirjainta) ovat helppoja, pidemmät vaikeampia.
@@ -174,27 +241,27 @@ var SISALTO = {
     {
       tunnus: "luokkahuone", nimi: "Kirottu luokkahuone", emoji: "🪑",
       kuvaus: "Pimeä luokka, jossa pulpetit leijuvat ilmassa.",
-      tasot: [1, 2], vari1: "#232030", vari2: "#3a2f4f"
+      tasot: [1, 2, 3], vari1: "#232030", vari2: "#3a2f4f"
     },
     {
       tunnus: "kirjasto", nimi: "Varjoisa kirjasto", emoji: "📚",
       kuvaus: "Kummitteleva kirjasto, jossa kirjat hehkuvat.",
-      tasot: [3, 4], vari1: "#1f2430", vari2: "#33415c"
+      tasot: [4, 5], vari1: "#1f2430", vari2: "#33415c"
     },
     {
       tunnus: "ruokala", nimi: "Kaaoksen ruokala", emoji: "🍝",
       kuvaus: "Raunioitunut ruokala, jossa kuplii vihreää limaa.",
-      tasot: [5], vari1: "#1e2a22", vari2: "#2f4a35"
+      tasot: [6, 7], vari1: "#1e2a22", vari2: "#2f4a35"
     },
     {
       tunnus: "liikuntasali", nimi: "Karmiva liikuntasali", emoji: "🏀",
       kuvaus: "Pimeä sali, jossa vanhat välineet heräävät eloon.",
-      tasot: [6, 7], vari1: "#2a2226", vari2: "#4a3038"
+      tasot: [8, 9], vari1: "#2a2226", vari2: "#4a3038"
     },
     {
       tunnus: "ullakko", nimi: "Hylätty ullakko", emoji: "🕸️",
       kuvaus: "Pölyinen ullakko, jonne sadut ovat piiloutuneet.",
-      tasot: [8], vari1: "#241d18", vari2: "#3e3226"
+      tasot: [10], vari1: "#241d18", vari2: "#3e3226"
     }
   ],
 

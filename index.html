@@ -86,6 +86,7 @@
         <div id="tehtava-otsikko">Sano tavu ääneen:</div>
         <div id="tehtava-kortti">
           <div id="tehtava-teksti"></div>
+          <div id="valinta-napit"></div>
           <div id="tarina-pisteet"></div>
         </div>
         <div id="kuultu"></div>
@@ -191,6 +192,7 @@
         <button data-vali="sanat">Omat sanat</button>
         <button data-vali="tarinat">Omat tarinat</button>
         <button data-vali="raportti">Raportti</button>
+        <button data-vali="mikkitesti">Mikrofonitesti</button>
         <button data-vali="ohjeet">Ohjeet</button>
       </nav>
 
@@ -211,14 +213,16 @@
         <label class="rivi">
           <span>Lukutaso nyt:</span>
           <select id="asetus-taso">
-            <option value="1">1 — lyhyet tavut (KA)</option>
-            <option value="2">2 — isot tavut (KAK)</option>
-            <option value="3">3 — sanat tavuittain (KAK-KA)</option>
-            <option value="4">4 — pitkät sanat tavuittain</option>
-            <option value="5">5 — sanat ilman tavuviivoja</option>
-            <option value="6">6 — lyhyet lauseet</option>
-            <option value="7">7 — pitkät lauseet</option>
-            <option value="8">8 — sadut (pomotaistelut)</option>
+            <option value="1">1 — kirjaimen äänne (napautus)</option>
+            <option value="2">2 — kuuntele ja valitse tavu (napautus)</option>
+            <option value="3">3 — lyhyet tavut ääneen (KA)</option>
+            <option value="4">4 — isot tavut ääneen (KAK)</option>
+            <option value="5">5 — sanat tavuittain (KAK-KA)</option>
+            <option value="6">6 — pitkät sanat tavuittain</option>
+            <option value="7">7 — sanat ilman tavuviivoja</option>
+            <option value="8">8 — lyhyet lauseet</option>
+            <option value="9">9 — pitkät lauseet</option>
+            <option value="10">10 — sadut (pomotaistelut)</option>
           </select>
         </label>
         <p class="vanhemmat-vihje">Taso mukautuu itsestään pelin aikana:
@@ -247,14 +251,50 @@
       </section>
 
       <section id="vali-raportti" class="valilehti">
-        <p class="vanhemmat-vihje">Miten lukeminen on sujunut. "Heti oikein"
-          tarkoittaa ensimmäisellä yrityksellä ilman apuja luettuja.</p>
+        <p class="vanhemmat-vihje">Miten harjoittelu on sujunut.
+          <em>Sujui itsenäisesti</em> = meni ensimmäisellä yrityksellä ilman apuja.
+          <em>Harjoiteltu mallin kanssa</em> ei ole epäonnistuminen vaan tieto
+          siitä, missä tukea on tarvittu — peli ei rankaise avun pyytämisestä
+          millään tavalla.</p>
         <div id="raportti-luvut"></div>
         <h3 class="raportti-otsikko">Viimeiset 7 päivää</h3>
         <div id="raportti-paivat"></div>
-        <h3 class="raportti-otsikko">Toistuvasti hankalat palat</h3>
+        <h3 class="raportti-otsikko">Kertauksessa juuri nyt</h3>
         <div id="raportti-hankalat"></div>
         <button id="raportti-tyhjenna" class="linkkinappi vaara">🗑 Tyhjennä tilastot</button>
+      </section>
+
+      <section id="vali-mikkitesti" class="valilehti">
+        <p class="vanhemmat-vihje">Tämä testi kertoo, toimiiko puheentunnistus
+          <strong>tämän lapsen äänellä ja tällä laitteella</strong>. Se on
+          pelin tärkein yksittäinen kysymys: jos tunnistin hylkää oikein
+          luettuja tai hyväksyy vääriä, kannattaa pelata
+          "aikuinen kuuntelee" -tilassa. Kestää noin 5 minuuttia.</p>
+        <p class="vanhemmat-vihje"><strong>Näin testi tehdään:</strong> lapsi
+          lukee ruudulla näkyvän sanan ääneen. Peli kertoo, mitä se kuuli ja
+          hyväksyikö se suorituksen. Sinä kerrot, lukiko lapsi <em>oikeasti</em>
+          oikein. Näistä kahdesta tiedosta syntyy tulos.</p>
+
+        <div id="mikkitesti-alku">
+          <button id="mikkitesti-aloita" class="isonappi">🎤 ALOITA TESTI</button>
+        </div>
+
+        <div id="mikkitesti-kesken" class="piilossa">
+          <div id="mikkitesti-edistyminen" class="mikkitesti-edistyminen"></div>
+          <div id="mikkitesti-kohde" class="mikkitesti-kohde"></div>
+          <button id="mikkitesti-kuuntele" class="isonappi">🎤 KUUNTELE LUKEMINEN</button>
+          <div id="mikkitesti-kuultu" class="mikkitesti-kuultu"></div>
+          <div id="mikkitesti-tuomio" class="piilossa">
+            <p class="vanhemmat-vihje">Lukiko lapsi tämän oikein?</p>
+            <div class="mikkitesti-napit">
+              <button id="mikkitesti-oikein" class="isonappi vihrea">👍 LUKI OIKEIN</button>
+              <button id="mikkitesti-vaarin" class="isonappi keltainen">👎 EI LUKENUT OIKEIN</button>
+            </div>
+          </div>
+          <button id="mikkitesti-keskeyta" class="linkkinappi">Keskeytä testi</button>
+        </div>
+
+        <div id="mikkitesti-tulos" class="piilossa"></div>
       </section>
 
       <section id="vali-ohjeet" class="valilehti">

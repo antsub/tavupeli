@@ -64,12 +64,15 @@
 
   function oletusTila() {
     return {
-      lukutaso: 1,          // 1..8, mukautuu automaattisesti (piilossa lapselta)
+      versio: TILA_VERSIO,
+      lukutaso: 1,          // 1..10, mukautuu automaattisesti (piilossa lapselta)
       tahdet: 0,            // XP-tähdet — eivät koskaan vähene
       kolikot: 0,           // 🪙 kaupan valuutta
       kilvet: 3,            // 🛡️ torjuu hirviöiden hassut vastaiskut
       varusteet: [],        // kaupasta ostetut varusteet (tunnukset)
       kombo: 0,             // 🔥 lukuputki — kasvattaa vahinkoa, säilyy taisteluista toiseen
+      sisu: 0,              // 💪 jokainen tehty tehtävä kartuttaa tätä, meni miten meni
+      kertaus: [],          // hankalat palat jotka palaavat harjoitteluun
       syoksyJono: false,    // ansaittu kombosyöksy odottaa vuoroaan
       komboPituus: 3,       // kombosyöksyn palojen määrä (kiihtyy 3 -> 5)
       putki: 0,             // peräkkäiset puhtaat onnistumiset
@@ -97,6 +100,14 @@
       for (var a in pohja.asetukset) if (t.asetukset[a] === undefined) t.asetukset[a] = pohja.asetukset[a];
       if (!t.tilastot.paivittain) t.tilastot.paivittain = {};
       if (!t.tilastot.hankalat) t.tilastot.hankalat = {};
+      if (!Array.isArray(t.kertaus)) t.kertaus = [];
+      // Versio 1 -> 2: tasoja oli 8, nyt alkuun tuli kaksi uutta
+      // kuuntelutasoa. Siirretään vanha edistyminen oikealle kohdalle.
+      if (!t.versio || t.versio < 2) {
+        t.lukutaso = Math.min(MAX_TASO, (t.lukutaso || 1) + 2);
+        t.versio = TILA_VERSIO;
+      }
+      t.lukutaso = Math.max(1, Math.min(MAX_TASO, t.lukutaso));
       return t;
     } catch (e) { return oletusTila(); }
   }
@@ -126,19 +137,26 @@
   var viimeVastustaja = null;
   var odottavaArvonimi = null;
   var odottavaAlue = null;
+  var edellinenOliKertaus = false;
 
   /* ================= lukutasot ================= */
 
   var LUKUTASOT = [
-    { tyyppi: "tavu", lyhyt: true },     // 1: KA, SU ...
-    { tyyppi: "tavu", lyhyt: false },    // 2: KAK, PRÖT ...
-    { tyyppi: "sana", viivat: true, minT: 2, maxT: 2 },   // 3: KAK-KA
-    { tyyppi: "sana", viivat: true, minT: 3, maxT: 99 },  // 4: PIE-RU-PIL-LI
-    { tyyppi: "sana", viivat: false, minT: 2, maxT: 3 },  // 5: kakka (ilman viivoja)
-    { tyyppi: "lause", minS: 1, maxS: 4 },                // 6: lyhyet lauseet
-    { tyyppi: "lause", minS: 5, maxS: 99 },               // 7: pitkät lauseet
-    { tyyppi: "tarina" }                                  // 8: pomotaistelut
+    { tyyppi: "valinta", mista: "kirjain" },              // 1: kuuntele äänne, valitse kirjain
+    { tyyppi: "valinta", mista: "tavu" },                 // 2: kuuntele tavu, valitse tavu
+    { tyyppi: "tavu", lyhyt: true },                      // 3: KA, SU ...
+    { tyyppi: "tavu", lyhyt: false },                     // 4: KAK, PRÖT ...
+    { tyyppi: "sana", viivat: true, minT: 2, maxT: 2 },   // 5: KAK-KA
+    { tyyppi: "sana", viivat: true, minT: 3, maxT: 99 },  // 6: PIE-RU-PIL-LI
+    { tyyppi: "sana", viivat: false, minT: 2, maxT: 3 },  // 7: kakka (ilman viivoja)
+    { tyyppi: "lause", minS: 1, maxS: 4 },                // 8: lyhyet lauseet
+    { tyyppi: "lause", minS: 5, maxS: 99 },               // 9: pitkät lauseet
+    { tyyppi: "tarina" }                                  // 10: pomotaistelut
   ];
+
+  var MAX_TASO = LUKUTASOT.length;          // 10
+  var ENSIMMAINEN_LUKUTASO = 3;             // tästä alkaa ääneen lukeminen
+  var TILA_VERSIO = 2;                      // kasvatetaan kun tallennuksen rakenne muuttuu
 
   /* ================= sisällön kokoaminen ================= */
 
@@ -460,11 +478,187 @@
 
   function tehokasLukutaso() {
     // Pomotaistelussa luetaan aina tarinaa loppuun asti.
-    if (tila.vastustaja && tila.vastustaja.pomo) return 8;
-    // Tason 8 tehtävät ovat pomotaisteluita. Jos käynnissä on vielä
-    // tavallinen taistelu, käytetään tason 7 tehtäviä kunnes se päättyy.
-    if (tila.lukutaso === 8 && tila.vastustaja && !tila.vastustaja.pomo) return 7;
+    if (tila.vastustaja && tila.vastustaja.pomo) return MAX_TASO;
+    // Ylin taso on pomotaisteluita. Jos käynnissä on vielä tavallinen
+    // taistelu, käytetään sitä edeltävän tason tehtäviä kunnes se päättyy.
+    if (tila.lukutaso === MAX_TASO && tila.vastustaja && !tila.vastustaja.pomo) return MAX_TASO - 1;
     return tila.lukutaso;
+  }
+
+  /* ---------- kertauspooli: hankalat palat palaavat harjoitteluun ----------
+     Pelkkä hankaluuksien kirjaaminen ei opeta mitään. Takkuillut pala
+     laitetaan jonoon ja tarjotaan uudestaan parin tehtävän päästä —
+     ja uudestaan, kunnes se menee sujuvasti. Vasta silloin se kuitataan
+     pois. Tämä on hajautettua kertausta: oppimisen tehokkain yksittäinen
+     keino. ------------------------------------------------------------ */
+
+  function kertausAvain(t) {
+    return String(t.teksti).toLowerCase() + "|" + t.tyyppi + "|" + (t.mista || "");
+  }
+
+  function lisaaKertaukseen(tieto) {
+    if (!tieto || !tieto.teksti) return;
+    var avain = kertausAvain(tieto);
+    for (var i = 0; i < tila.kertaus.length; i++) {
+      if (kertausAvain(tila.kertaus[i]) === avain) {
+        tila.kertaus[i].viivyta = 3;              // takkusi taas — hetken päästä uudelleen
+        tila.kertaus[i].kerrat++;
+        return;
+      }
+    }
+    tieto.viivyta = 2;
+    tieto.kerrat = 1;
+    tila.kertaus.push(tieto);
+    if (tila.kertaus.length > 30) tila.kertaus.shift();
+  }
+
+  function kuittaaKertaus(tehty) {
+    var avain = kertausAvain(tehty);
+    for (var i = 0; i < tila.kertaus.length; i++) {
+      if (kertausAvain(tila.kertaus[i]) === avain) {
+        tila.kertaus.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function kertausVanhenee() {
+    for (var i = 0; i < tila.kertaus.length; i++) {
+      if (tila.kertaus[i].viivyta > 0) tila.kertaus[i].viivyta--;
+    }
+  }
+
+  function poimiKertaus(taso) {
+    var valmiit = tila.kertaus.filter(function (k) {
+      if (k.viivyta > 0) return false;
+      // Lauseita ei tarjota takaisin, jos taso on pudonnut tavuihin.
+      if (k.tyyppi === "lause" && taso < 8) return false;
+      if (k.tyyppi === "sana" && taso < 4) return false;
+      return true;
+    });
+    return valmiit.length ? satunnainen(valmiit) : null;
+  }
+
+  // Rakentaa tehtävän kertauspoolin merkinnästä.
+  function rakennaKertauksesta(k) {
+    if (k.tyyppi === "valinta") {
+      rakennaValinta(k.mista, k.teksti);
+    } else if (k.tyyppi === "tavu") {
+      tehtava = { tyyppi: "tavu", kohde: k.teksti,
+        yritykset: 0, apu: false, palat: null, ratkaistu: false };
+    } else if (k.tyyppi === "sana") {
+      tehtava = { tyyppi: "sana", kohde: k.teksti, tavut: TAVUTUS.tavuta(k.teksti),
+        viivat: true, epasana: !!k.epasana,
+        yritykset: 0, apu: false, palat: null, ratkaistu: false };
+    } else {
+      tehtava = { tyyppi: "lause", kohde: k.teksti, sanat: k.teksti.split(/\s+/),
+        yritykset: 0, apu: false, palat: null, ratkaistu: false, osumat: [] };
+    }
+    tehtava.kertaus = true;
+  }
+
+  /* ---------- valintatehtävä: peli sanoo, lapsi napauttaa ----------
+     Ei vaadi mikrofonia lainkaan. Väärät vaihtoehdot ovat tarkoituksella
+     sekoittuvia (b/d, ä/a, m/n), jolloin harjoitus osuu juuri siihen
+     mikä lukihäiriössä on vaikeaa. -------------------------------------- */
+
+  // Vaihtaa sanasta yhden kirjaimen sekoittuvaan pariinsa: KA -> GA.
+  function muunnelma(teksti) {
+    var ryhmat = SISALTO.sekaannusparit || [];
+    var merkit = teksti.split("");
+    var jarjestys = [];
+    for (var i = 0; i < merkit.length; i++) jarjestys.push(i);
+    jarjestys.sort(function () { return Math.random() - 0.5; });
+    for (var j = 0; j < jarjestys.length; j++) {
+      var kohta = jarjestys[j];
+      var pieni = merkit[kohta].toLowerCase();
+      for (var r = 0; r < ryhmat.length; r++) {
+        var sijainti = ryhmat[r].indexOf(pieni);
+        if (sijainti < 0) continue;
+        var muut = ryhmat[r].filter(function (x) { return x !== pieni; });
+        if (!muut.length) continue;
+        var uusiKirjain = satunnainen(muut);
+        var kopio = merkit.slice();
+        kopio[kohta] = merkit[kohta] === merkit[kohta].toUpperCase()
+          ? uusiKirjain.toUpperCase() : uusiKirjain;
+        return kopio.join("");
+      }
+    }
+    return null;
+  }
+
+  // Kaksi mahdollisimman hämäävää väärää vaihtoehtoa.
+  function teeHairiot(kohde, pooli) {
+    var hairiot = [];
+    var kaytetyt = { };
+    kaytetyt[kohde.toLowerCase()] = true;
+
+    function lisaa(ehdokas) {
+      if (!ehdokas) return;
+      var avain = String(ehdokas).toLowerCase();
+      if (kaytetyt[avain]) return;
+      kaytetyt[avain] = true;
+      hairiot.push(ehdokas);
+    }
+
+    // 1) Sekoittuva muunnelma kohteesta (KA -> GA) — paras harjoitus.
+    lisaa(muunnelma(kohde));
+    // 2) Samanpituinen pooliin kuuluva, mieluiten samalla alkukirjaimella.
+    var samanMittaiset = pooli.filter(function (x) {
+      return x.length === kohde.length && x.toLowerCase() !== kohde.toLowerCase();
+    });
+    var samaAlku = samanMittaiset.filter(function (x) {
+      return x[0].toLowerCase() === kohde[0].toLowerCase();
+    });
+    if (hairiot.length < 2 && samaAlku.length) lisaa(satunnainen(samaAlku));
+    if (hairiot.length < 2 && samanMittaiset.length) lisaa(satunnainen(samanMittaiset));
+    // 3) Viimeinen keino: mikä tahansa poolista.
+    var kierrokset = 0;
+    while (hairiot.length < 2 && pooli.length > 1 && kierrokset++ < 40) {
+      lisaa(satunnainen(pooli));
+    }
+    while (hairiot.length < 2) lisaa(kohde + "?");   // ei pitäisi tapahtua
+    return hairiot.slice(0, 2);
+  }
+
+  function sekoita(lista) {
+    var kopio = lista.slice();
+    for (var i = kopio.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var apu = kopio[i]; kopio[i] = kopio[j]; kopio[j] = apu;
+    }
+    return kopio;
+  }
+
+  // mista: "kirjain" | "tavu" | "sana". pakotettuKohde = kertauksesta.
+  function rakennaValinta(mista, pakotettuKohde) {
+    var kohde, pooli, aanne = null, esimerkki = null;
+
+    if (mista === "kirjain") {
+      var lista = SISALTO.kirjaimet;
+      pooli = lista.map(function (k) { return k.kirjain; });
+      kohde = pakotettuKohde || valitseUusi(pooli);
+      var maaritys = lista.filter(function (k) { return k.kirjain === kohde; })[0] || lista[0];
+      kohde = maaritys.kirjain;
+      aanne = maaritys.aanne;
+      esimerkki = maaritys.esimerkki;
+    } else if (mista === "sana") {
+      pooli = kaikkiSanat().map(muotoileSana);
+      kohde = pakotettuKohde || valitseUusi(pooli);
+    } else {
+      mista = "tavu";
+      pooli = SISALTO.tavut.slice();
+      kohde = pakotettuKohde || valitseUusi(pooli);
+    }
+
+    tehtava = {
+      tyyppi: "valinta", mista: mista, kohde: kohde,
+      aanne: aanne, esimerkki: esimerkki,
+      vaihtoehdot: sekoita([kohde].concat(teeHairiot(kohde, pooli))),
+      vaarat: {},
+      yritykset: 0, apu: false, palat: null, ratkaistu: false
+    };
   }
 
   function rakennaTehtava() {
@@ -492,6 +686,29 @@
       return;
     }
 
+    // Kertausvuoro: aiemmin takkuillut pala palaa harjoitteluun.
+    kertausVanhenee();
+    var kertaus = poimiKertaus(taso);
+    if (kertaus && !edellinenOliKertaus && Math.random() < 0.3) {
+      edellinenOliKertaus = true;
+      rakennaKertauksesta(kertaus);
+      return;
+    }
+    edellinenOliKertaus = false;
+
+    if (def.tyyppi === "valinta") {
+      rakennaValinta(def.mista);
+      return;
+    }
+
+    // Ääneen luettavien tasojen väliin ripotellaan kuuntelutehtäviä:
+    // ne tuovat vaihtelua, harjoittavat äänne–kirjain-yhteyttä ja
+    // toimivat myös silloin kun mikrofonia ei ole käytettävissä.
+    if (Math.random() < 0.18) {
+      rakennaValinta(taso <= 4 ? "tavu" : "sana");
+      return;
+    }
+
     if (def.tyyppi === "tavu") {
       var tavut = suodataTaiKaikki(SISALTO.tavut, function (t) {
         return def.lyhyt ? kirjaimia(t) <= 2 : kirjaimia(t) >= 3;
@@ -504,13 +721,23 @@
     }
 
     if (def.tyyppi === "sana") {
-      var sanat = suodataTaiKaikki(kaikkiSanat(), function (s) {
-        var maara = TAVUTUS.tavuta(s).length;
-        return maara >= def.minT && maara <= def.maxT;
-      });
-      var sana = valitseUusi(sanat);
+      // Joka kolmas sana on höpölöitsy eli epäsana. Oikean sanan lapsi
+      // oppii pian tunnistamaan kuvana, mutta höpölöitsy on pakko lukea
+      // kirjain kirjaimelta — ja juuri se on lukemisen harjoittelua.
+      var epasana = Math.random() < 0.33;
+      var sanapooli = epasana
+        ? suodataTaiKaikki(SISALTO.hopoloitsut, function (h) {
+            var m = TAVUTUS.tavuta(h).length;
+            return m >= def.minT && m <= def.maxT;
+          })
+        : suodataTaiKaikki(kaikkiSanat(), function (s) {
+            var m = TAVUTUS.tavuta(s).length;
+            return m >= def.minT && m <= def.maxT;
+          });
+      var sana = valitseUusi(sanapooli);
       tehtava = {
         tyyppi: "sana", kohde: sana, tavut: TAVUTUS.tavuta(sana), viivat: def.viivat,
+        epasana: epasana,
         yritykset: 0, apu: false, palat: null, ratkaistu: false
       };
       return;
@@ -530,13 +757,13 @@
 
   function rakennaKombosyoksy(taso) {
     var maara = Math.min(5, Math.max(3, tila.komboPituus || 3));
-    var tavuja = taso <= 2;
+    var tavuja = taso <= 4;
     var pooli;
     if (tavuja) {
       pooli = SISALTO.tavut.slice();
     } else {
       pooli = suodataTaiKaikki(kaikkiSanat(), function (s) {
-        return TAVUTUS.tavuta(s).length <= (taso >= 6 ? 3 : 2);
+        return TAVUTUS.tavuta(s).length <= (taso >= 8 ? 3 : 2);
       }).slice();
     }
     var osat = [];
@@ -560,14 +787,18 @@
     kortti.textContent = "";
     pisteet.textContent = "";
     naytaKuultu("");
+    if (tehtava.tyyppi !== "valinta") piilotaValintaNapit();
 
     if (tehtava.palat) { renderoiPalat(); return; }
+    if (tehtava.tyyppi === "valinta") { renderoiValinta(); return; }
 
     if (tehtava.tyyppi === "tavu") {
       otsikko.textContent = "Sano tavu ääneen:";
       kortti.appendChild(luo("span", "tavu v0", muotoileSana(tehtava.kohde)));
     } else if (tehtava.tyyppi === "sana") {
-      otsikko.textContent = "Lue sana ääneen:";
+      otsikko.textContent = tehtava.epasana
+        ? "🪄 Höpölöitsy! Lue ääneen:"
+        : "Lue sana ääneen:";
       if (tehtava.viivat) {
         for (var i = 0; i < tehtava.tavut.length; i++) {
           if (i > 0) kortti.appendChild(luo("span", "viiva", "-"));
@@ -594,6 +825,83 @@
 
     sovitaTekstikoko();
     paivitaMikkiTeksti();
+    paivitaOhjaimet();
+  }
+
+  function renderoiValinta() {
+    var otsikot = {
+      kirjain: "Kuuntele ja valitse oikea kirjain:",
+      tavu: "Kuuntele ja valitse oikea tavu:",
+      sana: "Kuuntele ja valitse oikea sana:"
+    };
+    $("tehtava-otsikko").textContent = otsikot[tehtava.mista] || otsikot.tavu;
+
+    var kortti = $("tehtava-teksti");
+    kortti.textContent = "";
+    kortti.appendChild(luo("div", "kuuntelukuva", "🔊"));
+    if (tehtava.apu && tehtava.esimerkki) {
+      kortti.appendChild(luo("div", "valinta-vihje", "kuten " + tehtava.esimerkki));
+    }
+
+    var napit = $("valinta-napit");
+    napit.textContent = "";
+    napit.classList.add("nakyy");
+    tehtava.vaihtoehdot.forEach(function (vaihtoehto) {
+      var nappi = luo("button", "valinta-nappi", muotoileSana(vaihtoehto));
+      if (tehtava.vaarat[vaihtoehto]) nappi.classList.add("vaara");
+      if (tehtava.apu && vaihtoehto === tehtava.kohde) nappi.classList.add("hohtaa");
+      nappi.addEventListener("click", function () { valitseVastaus(vaihtoehto, nappi); });
+      napit.appendChild(nappi);
+    });
+
+    sovitaTekstikoko();
+    paivitaMikkiTeksti();
+    paivitaOhjaimet();
+    // Peli sanoo kohteen heti — tehtävä on nimenomaan kuuntelutehtävä.
+    setTimeout(function () {
+      if (tehtava && !tehtava.ratkaistu && tehtava.tyyppi === "valinta") puhuValinta();
+    }, 350);
+  }
+
+  function puhuValinta() {
+    if (tehtava.mista === "kirjain") {
+      var teksti = tehtava.aanne + (tehtava.esimerkki ? ", kuten " + tehtava.esimerkki : "");
+      PUHE.sano(teksti, 0.7);
+    } else {
+      PUHE.sano(tehtava.kohde, 0.7);
+    }
+  }
+
+  function valitseVastaus(vaihtoehto, nappi) {
+    if (!tehtava || tehtava.ratkaistu) return;
+    AANET.herata();
+
+    if (vaihtoehto === tehtava.kohde) {
+      nappi.classList.add("oikein");
+      AANET.ding();
+      onnistui("valinta");
+      return;
+    }
+
+    // Väärä valinta — lempeästi ja opettavasti.
+    tehtava.vaarat[vaihtoehto] = true;
+    tehtava.yritykset++;
+    nappi.classList.add("vaara");
+    nappi.classList.remove("tarise");
+    void nappi.offsetWidth;
+    nappi.classList.add("tarise");
+    AANET.hups();
+    valistaHirvio();
+
+    if (tehtava.yritykset >= 2) {
+      // Toinen huti: näytetään oikea vastaus ja opetellaan yhdessä.
+      tehtava.apu = true;
+      kupla("Tässä se on! Paina hohtavaa 👉");
+      renderoiValinta();
+    } else {
+      kupla(satunnainen(SISALTO.lohdutukset));
+      setTimeout(puhuValinta, 400);
+    }
   }
 
   function renderoiPalat() {
@@ -601,6 +909,7 @@
     var otsikko = $("tehtava-otsikko");
     var kortti = $("tehtava-teksti");
     kortti.textContent = "";
+    piilotaValintaNapit();
     otsikko.textContent = tehtava.tyyppi === "kombo"
       ? "⚡ KOMBOSYÖKSY! Lue palat putkeen:"
       : "Pala kerrallaan! Sano tummennettu pala:";
@@ -612,6 +921,13 @@
     }
     sovitaTekstikoko();
     paivitaMikkiTeksti();
+    paivitaOhjaimet();
+  }
+
+  function piilotaValintaNapit() {
+    var napit = $("valinta-napit");
+    napit.classList.remove("nakyy");
+    napit.textContent = "";
   }
 
   function sovitaTekstikoko() {
@@ -637,6 +953,7 @@
   function paivitaMikkiTeksti() {
     var e = $("mikki-teksti");
     if (!tehtava) { e.textContent = "SANO!"; return; }
+    if (tehtava.tyyppi === "valinta") { e.textContent = "VALITSE!"; return; }
     if (tehtava.tyyppi === "kombo") e.textContent = "SYÖKSY! ⚡";
     else if (tehtava.palat) e.textContent = "SANO PALA!";
     else if (tehtava.tyyppi === "tavu") e.textContent = "SANO TAVU!";
@@ -651,10 +968,14 @@
   }
 
   function paivitaOhjaimet() {
+    // Valintatehtävä ratkaistaan napauttamalla: mikrofonia ei tarvita
+    // eikä aikuisen tarvitse arvioida mitään.
+    var valinta = !!(tehtava && tehtava.tyyppi === "valinta");
     var aikuinen = aikuistilassa();
-    $("mikki-nappi").classList.toggle("piilossa", aikuinen);
-    $("aikuis-napit").classList.toggle("piilossa", !aikuinen);
-    $("pikku-oikein").classList.toggle("piilossa", aikuinen);
+    $("mikki-nappi").classList.toggle("piilossa", valinta || aikuinen);
+    $("aikuis-napit").classList.toggle("piilossa", valinta || !aikuinen);
+    $("pikku-oikein").classList.toggle("piilossa", valinta || aikuinen);
+    $("kuuntele-nappi").classList.toggle("iso-kuuntele", valinta);
   }
 
   function asetaKuunteluUI(paalla) {
@@ -769,7 +1090,8 @@
     }
 
     if (tehtava.tyyppi === "sana") {
-      if (kandidaatit.some(function (k) { return VERTAILU.kokoSanaOsuu(tehtava.kohde, k); })) {
+      var loysa = !!tehtava.epasana;
+      if (kandidaatit.some(function (k) { return VERTAILU.kokoSanaOsuu(tehtava.kohde, k, loysa); })) {
         onnistui("puhe"); return true;
       }
       return false;
@@ -876,6 +1198,11 @@
 
   function puhuMalli() {
     if (PUHE.kuunteleeko()) PUHE.lopeta("kayttaja");
+    if (tehtava.tyyppi === "valinta") {
+      // Uudelleenkuuntelu ei ole "apua" — se on tehtävän ydin.
+      puhuValinta();
+      return;
+    }
     tehtava.apu = true;
     if (tehtava.palat) {
       PUHE.sano(tehtava.palat.osat[tehtava.palat.indeksi], 0.7);
@@ -884,8 +1211,10 @@
     if (tehtava.tyyppi === "tavu") {
       PUHE.sano(tehtava.kohde, 0.7);
     } else if (tehtava.tyyppi === "sana") {
-      // Ensin tavu kerrallaan, sitten koko sana.
-      PUHE.sanoJono(tehtava.tavut, function () { PUHE.sano(tehtava.kohde, 0.8); });
+      // Ensin tavu kerrallaan, sitten koko sana. Höpölöitsyt luetaan
+      // hitaammin — niitä ei voi arvata, ne on pakko kuulla tarkasti.
+      var nopeus = tehtava.epasana ? 0.65 : 0.8;
+      PUHE.sanoJono(tehtava.tavut, function () { PUHE.sano(tehtava.kohde, nopeus); });
     } else {
       PUHE.sano(tehtava.kohde, 0.75);
     }
@@ -904,6 +1233,10 @@
     var puhdas = tehtava.yritykset === 0 && !tehtava.apu && lahde !== "auto" && lahde !== "ohitus";
     var kompuroi = !syoksy &&
       (lahde === "auto" || lahde === "ohitus" || tehtava.yritykset >= 2 || !!tehtava.palat);
+    // Avun pyytäminen on pelin arvokkain oppimisteko, joten siitä ei
+    // rangaista millään tavalla: putki ei katkea mallin kuuntelusta
+    // eikä paloista. Vain tehtävän ohittaminen nollaa putken.
+    var katkaisee = lahde === "ohitus";
 
     var kriittinen = false;
     var vahinko, xp;
@@ -916,9 +1249,11 @@
       tila.komboPituus = Math.min(5, (tila.komboPituus || 3) + 1); // kiihtyvä tahti
       tila.kombo++;
     } else {
-      // Kombomittari eli lukuputki: puhdas luku kasvattaa vahinkoa,
-      // muu katkaisee putken (lempeästi — mitään ei menetetä).
-      tila.kombo = puhdas ? (tila.kombo || 0) + 1 : 0;
+      // Kombomittari eli lukuputki: puhdas luku kasvattaa sitä. Avun
+      // kanssa tehty tehtävä ei kasvata mutta ei myöskään katkaise —
+      // putki nollautuu vain ohituksesta.
+      if (puhdas) tila.kombo = (tila.kombo || 0) + 1;
+      else if (katkaisee) tila.kombo = 0;
       kriittinen = puhdas && v && !v.pomo && (tila.putki >= 2 || Math.random() < 0.2);
       var komboBonus = tila.kombo >= 2 ? 5 * Math.min(tila.kombo - 1, 4) : 0;
       vahinko = (kriittinen ? 20 : 10) + komboBonus + miekkaBonus();
@@ -930,11 +1265,36 @@
       tila.syoksyJono = true;
     }
 
+    // SISU: jokainen tehty tehtävä kartuttaa tätä riippumatta siitä,
+    // menikö se kerralla oikein. Näin myös takkuava lukija saa säännöllisesti
+    // pelin isot hetket — muuten peli palkitsisi eniten sitä, joka
+    // tarvitsee kannustusta vähiten.
+    var sisuJuhla = false;
+    if (!syoksy) {
+      tila.sisu = (tila.sisu || 0) + 1;
+      if (tila.sisu % 5 === 0) {
+        tila.syoksyJono = true;
+        sisuJuhla = !puhdas;   // sujuvalla on jo komboputki juhlimassa
+      }
+    }
+
     // Tähdet ja kolikot — aina vähintään yksi, yrityskin palkitaan.
     tila.tahdet += xp;
     tila.kolikot += xp;
     tarkistaArvonimi();
     kirjaaTilasto(puhdas, kompuroi);
+
+    // Kertauspooli: sujuvasti mennyt pala kuitataan pois, takkuillut
+    // pala laitetaan jonoon palaamaan hetken päästä.
+    var kertausKuitattu = false;
+    if (!syoksy && tehtava.kohde) {
+      var merkinta = {
+        teksti: tehtava.kohde, tyyppi: tehtava.tyyppi,
+        mista: tehtava.mista || null, epasana: !!tehtava.epasana
+      };
+      if (puhdas) kertausKuitattu = kuittaaKertaus(merkinta) && !!tehtava.kertaus;
+      else if (kompuroi) lisaaKertaukseen(merkinta);
+    }
 
     // Mukautuva vaikeustaso — hiljaa taustalla. Kombosyöksy on
     // bonuskierros eikä vaikuta lukutasoon.
@@ -944,7 +1304,7 @@
       if (kompuroi) tila.kompuroinnit++;
       else if (tehtava.yritykset <= 1) tila.kompuroinnit = 0;
 
-      if (tila.putki >= 3 && tila.lukutaso < 8) {
+      if (tila.putki >= 3 && tila.lukutaso < MAX_TASO) {
         tila.lukutaso++; tila.putki = 0; tila.kompuroinnit = 0; tasoNousi = true;
       } else if (tila.kompuroinnit >= 2 && tila.lukutaso > 1) {
         tila.lukutaso--; tila.kompuroinnit = 0; tila.putki = 0;
@@ -981,11 +1341,15 @@
     renderoiHP();
 
     if (syoksy) kupla("KOMBOSYÖKSY OSUI! ⚡ Hirviö pyörii ympyrää!");
+    else if (kertausKuitattu) kupla("NYT SE MENI! 🎉 Tuo oli aiemmin vaikea!");
+    else if (sisuJuhla) kupla("SISUPALKINTO! 💪 Sinnikkyys palkitaan aina!");
     else if (lahde === "auto" || lahde === "ohitus") kupla("Hyvä yritys, se osui silti! 💥");
     else if (kriittinen) kupla("KRIITTINEN OSUMA! 💥💥 Upeaa lukemista!");
     else kupla(satunnainen(SISALTO.kehut));
 
     konfetti(kriittinen || syoksy ? 16 : 8, ["💥", "⭐", "✨"]);
+    if (kertausKuitattu) konfetti(14, ["🎉", "⭐", "🏅"]);
+    if (sisuJuhla) { konfetti(14, ["💪", "⭐", "🔥"]); toast("💪 Sisua! Kombosyöksy ladattu."); }
     tallenna();
 
     setTimeout(function () {
@@ -1010,7 +1374,8 @@
     var p = t.paivittain[paiva] || { tehtavia: 0, ekalla: 0, apua: 0 };
     p.tehtavia++;
     if (puhdas) p.ekalla++;
-    if (tehtava.apu || tehtava.palat) p.apua++;
+    // Kombosyöksy sisältää paloja, mutta se on palkinto eikä apu.
+    if ((tehtava.apu || tehtava.palat) && tehtava.tyyppi !== "kombo") p.apua++;
     t.paivittain[paiva] = p;
     var paivat = Object.keys(t.paivittain).sort();
     while (paivat.length > 60) delete t.paivittain[paivat.shift()];
@@ -1208,7 +1573,7 @@
   function seuraavaTehtava() {
     if (!peliKaynnissa()) return;
     if (!tila.vastustaja) {
-      if (tila.lukutaso === 8) {
+      if (tila.lukutaso === MAX_TASO) {
         if (!tila.tarina) { avaaTarinaValinta(); return; }
         aloitaPomo();
       } else {
@@ -1342,10 +1707,13 @@
     var luvut = $("raportti-luvut");
     luvut.textContent = "";
     [
-      [String(tehtavia), "tehtävää luettu"],
-      [prosentti + " %", "heti oikein"],
-      [String(paivat.length), "pelipäivää"],
-      [tila.lukutaso + " / 8", "lukutaso nyt"]
+      [String(tehtavia), "tehtävää tehty"],
+      [prosentti + " %", "sujui itsenäisesti"],
+      [String(apua), "harjoiteltu mallin kanssa"],
+      [String(paivat.length), "harjoituspäivää"],
+      [tila.lukutaso + " / " + MAX_TASO, "lukutaso nyt"],
+      [String(tila.kertaus.length), "palaa kertauksessa"],
+      [String(tila.sisu || 0), "sisua kerätty"]
     ].forEach(function (pari) {
       var chip = luo("div", "raportti-chip");
       chip.appendChild(luo("div", "raportti-arvo", pari[0]));
@@ -1374,21 +1742,240 @@
       rivi.appendChild(pylvas);
     });
 
-    // Toistuvasti hankalat palat
+    // Mitä peli kertaa juuri nyt + mikä on toistuvasti vaatinut harjoitusta
     var hl = $("raportti-hankalat");
     hl.textContent = "";
+
+    if (tila.kertaus.length) {
+      hl.appendChild(luo("p", "vanhemmat-vihje",
+        "Peli tarjoaa näitä paloja uudelleen, kunnes ne sujuvat itsenäisesti:"));
+      tila.kertaus.slice(0, 8).forEach(function (k) {
+        var r = luo("div", "hankala-rivi kertauksessa");
+        r.appendChild(luo("span", "hankala-teksti", muotoileSana(k.teksti)));
+        r.appendChild(luo("span", "hankala-maara", "🔁 " + k.kerrat + "×"));
+        hl.appendChild(r);
+      });
+    } else {
+      hl.appendChild(luo("p", "vanhemmat-vihje",
+        "Kertauslista on tyhjä — kaikki harjoitellut palat ovat menneet sujuvasti."));
+    }
+
     var avaimet = Object.keys(t.hankalat)
       .sort(function (a, b) { return t.hankalat[b] - t.hankalat[a]; })
-      .slice(0, 8);
-    if (!avaimet.length) {
-      hl.appendChild(luo("p", "vanhemmat-vihje", "Ei toistuvia kompastuksia — hienoa! Tähän listautuvat palat, jotka ovat vaatineet useita yrityksiä."));
+      .slice(0, 6);
+    if (avaimet.length) {
+      hl.appendChild(luo("h3", "raportti-otsikko", "Eniten harjoitusta vaatineet"));
+      avaimet.forEach(function (avain) {
+        var r = luo("div", "hankala-rivi");
+        r.appendChild(luo("span", "hankala-teksti", muotoileSana(avain)));
+        r.appendChild(luo("span", "hankala-maara", t.hankalat[avain] + "×"));
+        hl.appendChild(r);
+      });
     }
-    avaimet.forEach(function (avain) {
-      var r = luo("div", "hankala-rivi");
-      r.appendChild(luo("span", "hankala-teksti", avain));
-      r.appendChild(luo("span", "hankala-maara", t.hankalat[avain] + "×"));
-      hl.appendChild(r);
+  }
+
+  /* ================= mikrofonitesti =================
+     Pelin suurin epävarmuus ei ole pelisuunnittelussa vaan siinä,
+     kuuleeko puheentunnistus juuri tämän lapsen lukemisen. Tämä testi
+     mittaa sen kahdesta suunnasta: hyväksyykö peli oikein luetut
+     (ettei lapsi turhaudu) ja hylkääkö se väärin luetut (ettei peli
+     opeta virheitä). Vasta tulos kertoo, kannattaako mikrofonia käyttää.
+     ------------------------------------------------------------------ */
+
+  var MIKKITESTI_KOHTEET = [
+    { teksti: "KA", tyyppi: "tavu" },
+    { teksti: "PIS", tyyppi: "tavu" },
+    { teksti: "kakka", tyyppi: "sana" },
+    { teksti: "pöllö", tyyppi: "sana" },
+    { teksti: "pierupilli", tyyppi: "sana" },
+    { teksti: "PÖMPPELI", tyyppi: "sana", epasana: true },
+    { teksti: "Pupu pieraisi.", tyyppi: "lause" },
+    { teksti: "Kissa haisee pahalle.", tyyppi: "lause" }
+  ];
+
+  var mikkitesti = null;
+
+  // Sama hyväksyntäsääntö jota peli käyttää oikeissa tehtävissä.
+  function testinHyvaksynta(kohde, kandidaatit) {
+    if (!kandidaatit || !kandidaatit.length) return false;
+    if (kohde.tyyppi === "tavu") {
+      return kandidaatit.some(function (k) { return VERTAILU.tavuOsuu(kohde.teksti, k); });
+    }
+    if (kohde.tyyppi === "sana") {
+      return kandidaatit.some(function (k) {
+        return VERTAILU.kokoSanaOsuu(kohde.teksti, k, !!kohde.epasana);
+      });
+    }
+    return kandidaatit.some(function (k) { return VERTAILU.lauseOsuu(kohde.teksti, k).ok; });
+  }
+
+  function aloitaMikkitesti() {
+    AANET.herata();
+    PUHE.herata();
+    if (!PUHE.tuettu()) {
+      toast("Tämä selain ei tue puheentunnistusta lainkaan.");
+      return;
+    }
+    mikkitesti = { indeksi: 0, tulokset: [], kuultu: "", kandidaatit: [], hyvaksyi: false };
+    $("mikkitesti-alku").classList.add("piilossa");
+    $("mikkitesti-tulos").classList.add("piilossa");
+    $("mikkitesti-kesken").classList.remove("piilossa");
+    naytaMikkitestiKohde();
+  }
+
+  function naytaMikkitestiKohde() {
+    var kohde = MIKKITESTI_KOHTEET[mikkitesti.indeksi];
+    $("mikkitesti-edistyminen").textContent =
+      "Kohde " + (mikkitesti.indeksi + 1) + " / " + MIKKITESTI_KOHTEET.length;
+    $("mikkitesti-kohde").textContent = kohde.teksti +
+      (kohde.epasana ? "  (höpölöitsy)" : "");
+    $("mikkitesti-kuultu").textContent = "";
+    $("mikkitesti-tuomio").classList.add("piilossa");
+    $("mikkitesti-kuuntele").classList.remove("piilossa");
+    $("mikkitesti-kuuntele").textContent = "🎤 KUUNTELE LUKEMINEN";
+  }
+
+  function mikkitestiKuuntele() {
+    if (!mikkitesti) return;
+    var kohde = MIKKITESTI_KOHTEET[mikkitesti.indeksi];
+    var nappi = $("mikkitesti-kuuntele");
+    nappi.textContent = "🎤 KUUNTELEN…";
+    $("mikkitesti-kuultu").textContent = "";
+
+    var kaynnistyi = PUHE.aloita({
+      jatkuva: kohde.tyyppi === "lause",
+      maksimiMs: kohde.tyyppi === "lause" ? 20000 : 10000,
+      hiljaisuusMs: 2500,
+      eiPuhettaMs: 8000,
+      tulos: function (teksti) {
+        $("mikkitesti-kuultu").textContent = "Kuulen: " + teksti;
+      },
+      loppu: function (teksti, kandidaatit, syy) {
+        nappi.classList.add("piilossa");
+        mikkitesti.kuultu = teksti || "";
+        mikkitesti.kandidaatit = kandidaatit || [];
+        mikkitesti.hyvaksyi = testinHyvaksynta(kohde, kandidaatit);
+        var kuvaus = teksti
+          ? "Peli kuuli: \u201d" + teksti + "\u201d"
+          : (syy === "estetty" ? "Mikrofonilupa puuttuu." : "Peli ei kuullut mitään.");
+        $("mikkitesti-kuultu").textContent = kuvaus + "  →  " +
+          (mikkitesti.hyvaksyi ? "peli HYVÄKSYI ✔" : "peli HYLKÄSI ✖");
+        $("mikkitesti-tuomio").classList.remove("piilossa");
+      }
     });
+
+    if (!kaynnistyi) {
+      nappi.textContent = "🎤 KUUNTELE LUKEMINEN";
+      toast("Mikrofonia ei saatu käyttöön.");
+    }
+  }
+
+  function mikkitestiKirjaa(lukiOikein) {
+    if (!mikkitesti) return;
+    var kohde = MIKKITESTI_KOHTEET[mikkitesti.indeksi];
+    mikkitesti.tulokset.push({
+      kohde: kohde.teksti,
+      kuultu: mikkitesti.kuultu,
+      hyvaksyi: mikkitesti.hyvaksyi,
+      oikein: lukiOikein
+    });
+    mikkitesti.indeksi++;
+    if (mikkitesti.indeksi >= MIKKITESTI_KOHTEET.length) naytaMikkitestiTulos();
+    else naytaMikkitestiKohde();
+  }
+
+  function naytaMikkitestiTulos() {
+    var tulokset = mikkitesti.tulokset;
+    var oikeinLuetut = tulokset.filter(function (r) { return r.oikein; });
+    var vaarinLuetut = tulokset.filter(function (r) { return !r.oikein; });
+    var hyvaksytytOikein = oikeinLuetut.filter(function (r) { return r.hyvaksyi; }).length;
+    var vaaratHyvaksynnat = vaarinLuetut.filter(function (r) { return r.hyvaksyi; }).length;
+    var turhatHylkaykset = oikeinLuetut.length - hyvaksytytOikein;
+
+    var laatu, suositus, luokka;
+    var osuus = oikeinLuetut.length ? hyvaksytytOikein / oikeinLuetut.length : 0;
+    if (oikeinLuetut.length < 3) {
+      laatu = "Testi jäi kesken";
+      suositus = "Lapsi luki oikein vain harvan kohteen, joten tunnistuksesta " +
+        "ei voi vielä sanoa mitään. Kokeile testi uudelleen helpommilla kohteilla.";
+      luokka = "tulos-keski";
+    } else if (osuus >= 0.8 && vaaratHyvaksynnat === 0) {
+      laatu = "Mikrofoni toimii hyvin ✔";
+      suositus = "Puheentunnistus tunnistaa tämän lapsen lukemisen luotettavasti. " +
+        "Peliä voi pelata mikrofonilla.";
+      luokka = "tulos-hyva";
+    } else if (osuus >= 0.6 && vaaratHyvaksynnat <= 1) {
+      laatu = "Mikrofoni toimii vaihtelevasti";
+      suositus = "Tunnistus osuu usein muttei aina. Pelaa mikrofonilla, mutta " +
+        "pidä aikuinen lähellä: ✔-napilla voi kuitata suorituksen, jonka peli " +
+        "kuuli väärin.";
+      luokka = "tulos-keski";
+    } else {
+      laatu = "Suosittelen aikuinen kuuntelee -tilaa";
+      suositus = vaaratHyvaksynnat > 1
+        ? "Peli hyväksyi suorituksia, jotka eivät olleet oikein. Silloin peli " +
+          "palkitsee väärästä lukutavasta, mikä on harjoittelussa haitallista."
+        : "Peli hylkäsi liian monta oikein luettua. Se turhauttaa lasta nopeasti.";
+      suositus += " Laita asetuksista \u201dAikuinen kuuntelee\u201d päälle — " +
+        "tasot 1–2 (napautustehtävät) toimivat joka tapauksessa ilman mikrofonia.";
+      luokka = "tulos-heikko";
+    }
+
+    tila.mikkitesti = {
+      pvm: new Date().toISOString().slice(0, 10),
+      laatu: laatu,
+      oikein: oikeinLuetut.length,
+      hyvaksytyt: hyvaksytytOikein,
+      vaaratHyvaksynnat: vaaratHyvaksynnat
+    };
+    tallenna();
+
+    var alusta = $("mikkitesti-tulos");
+    alusta.textContent = "";
+    alusta.className = luokka;
+    alusta.appendChild(luo("h3", "raportti-otsikko", laatu));
+
+    var luvut = luo("div", "mikkitesti-luvut");
+    [
+      [hyvaksytytOikein + " / " + oikeinLuetut.length, "oikein luettua tunnistettiin"],
+      [String(turhatHylkaykset), "oikeaa hylättiin turhaan"],
+      [String(vaaratHyvaksynnat), "väärää hyväksyttiin vahingossa"]
+    ].forEach(function (pari) {
+      var chip = luo("div", "raportti-chip");
+      chip.appendChild(luo("div", "raportti-arvo", pari[0]));
+      chip.appendChild(luo("div", "raportti-nimi", pari[1]));
+      luvut.appendChild(chip);
+    });
+    alusta.appendChild(luvut);
+    alusta.appendChild(luo("p", "vanhemmat-vihje", suositus));
+
+    // Kohdekohtainen erittely
+    tulokset.forEach(function (r) {
+      var rivi = luo("div", "hankala-rivi");
+      var merkki = r.oikein === r.hyvaksyi ? "✔" : "⚠️";
+      rivi.appendChild(luo("span", "hankala-teksti",
+        merkki + " " + r.kohde + " → " + (r.kuultu || "ei mitään")));
+      rivi.appendChild(luo("span", "hankala-maara",
+        (r.oikein ? "luki oikein" : "luki väärin") + " · " +
+        (r.hyvaksyi ? "hyväksyttiin" : "hylättiin")));
+      alusta.appendChild(rivi);
+    });
+
+    var uusiksi = luo("button", "linkkinappi", "🔁 Tee testi uudelleen");
+    uusiksi.addEventListener("click", aloitaMikkitesti);
+    alusta.appendChild(uusiksi);
+
+    $("mikkitesti-kesken").classList.add("piilossa");
+    $("mikkitesti-alku").classList.remove("piilossa");
+    alusta.classList.remove("piilossa");
+    mikkitesti = null;
+  }
+
+  function keskeytaMikkitesti() {
+    if (PUHE.kuunteleeko()) PUHE.lopeta("kayttaja");
+    mikkitesti = null;
+    $("mikkitesti-kesken").classList.add("piilossa");
+    $("mikkitesti-alku").classList.remove("piilossa");
   }
 
   /* ================= aikuisten paneeli ================= */
@@ -1427,7 +2014,7 @@
   }
 
   function vaihdaValilehti(nimi) {
-    ["asetukset", "sanat", "tarinat", "raportti", "ohjeet"].forEach(function (v) {
+    ["asetukset", "sanat", "tarinat", "raportti", "mikkitesti", "ohjeet"].forEach(function (v) {
       $("vali-" + v).classList.toggle("nakyy", v === nimi);
     });
     document.querySelectorAll("#vanhemmat nav button").forEach(function (b) {
@@ -1576,6 +2163,12 @@
     });
     $("kauppa-sulje").addEventListener("click", function () { piilotaPeite("kauppa"); });
 
+    $("mikkitesti-aloita").addEventListener("click", aloitaMikkitesti);
+    $("mikkitesti-kuuntele").addEventListener("click", mikkitestiKuuntele);
+    $("mikkitesti-oikein").addEventListener("click", function () { mikkitestiKirjaa(true); });
+    $("mikkitesti-vaarin").addEventListener("click", function () { mikkitestiKirjaa(false); });
+    $("mikkitesti-keskeyta").addEventListener("click", keskeytaMikkitesti);
+
     $("raportti-tyhjenna").addEventListener("click", function () {
       if (window.confirm("Tyhjennetäänkö tilastot? Tähdet, kolikot ja varusteet säilyvät.")) {
         tila.tilastot = { paivittain: {}, hankalat: {} };
@@ -1608,6 +2201,7 @@
 
     $("alku-aikuisille").addEventListener("click", avaaVanhemmat);
     $("vanhemmat-sulje").addEventListener("click", function () {
+      if (mikkitesti) keskeytaMikkitesti();
       piilotaPeite("vanhemmat");
       paivitaOhjaimet();
       if (peliKaynnissa() && tehtava) renderoiTehtava();
@@ -1693,7 +2287,7 @@
     $("tarina-takaisin").addEventListener("click", function () {
       // Lapsi voi valita helpompia tehtäviä satujen sijaan.
       piilotaPeite("tarinavalinta");
-      tila.lukutaso = 7;
+      tila.lukutaso = MAX_TASO - 1;
       tila.putki = 0;
       tila.kompuroinnit = 0;
       tallenna();
@@ -1708,4 +2302,13 @@
   }
 
   kytke();
+
+  // Automaattitestien apuri: näkyvissä vain kun peli avataan osoitteella
+  // ...?testi=1. Tavallisessa pelissä tätä ei ole olemassa.
+  if (typeof location !== "undefined" && /[?&]testi=1/.test(location.search)) {
+    window.__tavuritari = {
+      tehtava: function () { return tehtava; },
+      tila: function () { return tila; }
+    };
+  }
 })();

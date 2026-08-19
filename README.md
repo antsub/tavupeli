@@ -33,10 +33,46 @@ tietokoneella selaimessa, eikä vaadi asennuksia tai palvelinta.
 - **Sankaritaso:** tähdet (XP) ja arvonimet (Tavutonttu → Tavuritari →
   ... → Lukilegenda) vain kasvavat. Lapsi näkee aina edistyvänsä.
 
+## Lukutasot 1–10
+
+Peli alkaa lukemisen perustasta ja etenee satuihin asti. Kaksi alinta
+tasoa ratkaistaan **napauttamalla — mikrofonia ei tarvita lainkaan**:
+
+| Taso | Tehtävä | Miten vastataan |
+|---|---|---|
+| 1 | Kuuntele äänne, valitse kirjain | napautus |
+| 2 | Kuuntele tavu, valitse tavu | napautus |
+| 3–4 | Sano tavu ääneen (KA → KAK) | puhe |
+| 5–6 | Lue sana tavuviivoilla (KAK-KA) | puhe |
+| 7 | Lue sana ilman tavuviivoja | puhe |
+| 8–9 | Lue lause ääneen | puhe |
+| 10 | Lue satu — pomotaistelu | puhe |
+
+Kuuntelutehtäviä ripotellaan myös ylempien tasojen väliin: ne tuovat
+vaihtelua, harjoittavat äänne–kirjain-yhteyttä ja toimivat silloinkin,
+kun mikrofoni ei ole käytettävissä. Väärät vaihtoehdot ovat
+tarkoituksella sekoittuvia (b/d/p, ä/a, m/n), joten harjoitus osuu
+juuri siihen, mikä lukihäiriössä on vaikeaa.
+
+## Höpölöitsyt eli epäsanat
+
+Joka kolmas sanatehtävä on **höpölöitsy**: PÖMPPELI, KRAPSUTI,
+TIPSUKKA. Oikean sanan lapsi oppii pian tunnistamaan kuvana eikä enää
+lue sitä kirjain kirjaimelta — höpölöitsyä ei voi tunnistaa ulkoa, joten
+se on pakko lukea. Juuri sitä lukutaito on. Ja ne kuulostavat
+taikaloitsuilta, mikä sopii peliin täydellisesti.
+
+## Kertaus: hankalat palat palaavat
+
+Takkuillut pala menee kertausjonoon ja tulee uudelleen parin tehtävän
+päästä — ja uudelleen, kunnes se menee sujuvasti. Vasta silloin se
+kuitataan pois ("NYT SE MENI!"). Hajautettu kertaus on oppimisen
+tehokkain yksittäinen keino; pelkkä hankaluuksien kirjaaminen raporttiin
+ei opettaisi mitään.
+
 ## Mukautuva vaikeustaso (pelin ydin)
 
-Lukutaso (1–8: tavut → tavutetut sanat → sanat → lauseet → sadut) elää
-pelin mukana, **lapselta piilossa**:
+Lukutaso elää pelin mukana, **lapselta piilossa**:
 
 - 3 sujuvaa suoritusta peräkkäin → taso nousee huomaamatta.
 - 2 hankalaa tehtävää peräkkäin → taso laskee hiljaa, ilman moitetta.
@@ -48,6 +84,17 @@ pelin mukana, **lapselta piilossa**:
 
 Peli ei koskaan rankaise: väärästä vastauksesta ei menetä mitään, ja
 hirviöiden uho ei ikinä kohdistu lapsen taitoihin.
+
+**Avun pyytämisestä ei rangaista.** Mallin kuuntelu ja tehtävän
+pilkkominen paloihin eivät katkaise 🔥-lukuputkea — vain tehtävän
+ohittaminen katkaisee. Lapset optimoivat mittareita, eikä peli saa
+opettaa välttämään omaa parasta oppimistyökaluaan.
+
+**Sisu palkitaan yhtä lailla kuin sujuvuus.** Jokainen tehty tehtävä
+kartuttaa sisumittaria riippumatta siitä, menikö se kerralla oikein, ja
+joka viides laukaisee kombosyöksyn. Ilman tätä peli antaisi parhaat
+hetkensä sujuvalle lukijalle ja niukimmat sille, joka tarvitsee
+kannustusta eniten.
 
 ## Käyttöönotto iPadilla ja iPhonella
 
@@ -84,9 +131,20 @@ tai *Omat tarinat*. Liitä teksti, tallenna — peli tavuttaa sanat itse
 ja jakaa tarinat virkkeiksi. Tallentuu laitteen omaan muistiin.
 
 **Raportti aikuiselle:** samasta ⚙️-paneelista löytyy *Raportti*-
-välilehti: montako tehtävää on luettu, kuinka moni meni heti oikein,
-viimeisten 7 päivän harjoittelumäärät ja lista paloista, jotka ovat
-toistuvasti vaatineet useita yrityksiä.
+välilehti: montako tehtävää on tehty, kuinka moni sujui itsenäisesti,
+montako harjoiteltiin mallin kanssa (neutraali tieto, ei epäonnistuminen),
+viimeisten 7 päivän harjoittelumäärät sekä lista paloista, joita peli
+parhaillaan kertaa.
+
+**Mikrofonitesti:** ⚙️-paneelin *Mikrofonitesti*-välilehti vastaa pelin
+tärkeimpään yksittäiseen kysymykseen: kuuleeko puheentunnistus juuri
+tämän lapsen lukemisen tällä laitteella. Testissä lapsi lukee 8 kohdetta;
+peli kertoo mitä se kuuli ja hyväksyikö se suorituksen, ja aikuinen
+kertoo lukiko lapsi oikeasti oikein. Tuloksena on suositus: toimiiko
+mikrofoni luotettavasti vai kannattaako pelata "aikuinen kuuntelee"
+-tilassa. **Tee tämä testi ennen kuin peliä pelataan säännöllisesti** —
+jos peli hyväksyy vääriä suorituksia, se palkitsee väärästä lukutavasta,
+ja se on harjoittelussa haitallista.
 
 **Tiedostoon (kaikille laitteille):** muokkaa tiedostoa
 [`js/sisalto.js`](js/sisalto.js). Sinne voi lisätä tavuja, sanoja,
@@ -122,7 +180,9 @@ tavupeli/
 ```
 
 - Testit: `node testit/testit.js` (tavutus, vertailu, sisällön eheys,
-  HTML-id:t).
+  höpölöitsyt, kirjaimet, HTML-id:t).
+- Peliä voi avata testitilassa osoitteella `index.html?testi=1`, jolloin
+  `window.__tavuritari` paljastaa nykyisen tehtävän automaatiota varten.
 - Paikallinen kokeilu: `python3 -m http.server` tässä kansiossa ja avaa
   `http://localhost:8000` (mikrofoni toimii localhostissa).
 - Yhden tiedoston versio (helppo jakaa tai julkaista missä vain):

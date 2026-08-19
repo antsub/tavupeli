@@ -102,6 +102,12 @@ pienet kirjaimet, ääkköset ilman pisteitä (ä→a, ö→o), muut merkit
 viivoiksi. Esim. `"Räkämöykky"` → `kuvat/hirvio-rakamoykky.png`.
 Jos lisäät sisältöön uuden hirviön, nimeä kuva samalla säännöllä.
 
+## Ei tarvita valintatehtäviin
+
+Tasojen 1–2 kuuntele-ja-valitse -tehtävät (kirjaimet ja tavut) toimivat
+pelkällä tekstillä eivätkä kaipaa grafiikkaa. Jos joskus haluat kuvat
+kirjainten esimerkkisanoille (A → AUTO), pyydä — se on pieni lisätyö.
+
 ## Ei tarvita (peli tekee nämä itse)
 
 - Ääniefektit (syntetisoidaan laitteessa)

@@ -51,12 +51,15 @@ var VERTAILU = (function () {
   }
 
   // Vertaa yhtä odotettua sanaa yhteen kuultuun sanaan.
-  function sanaOsuu(odotettu, kuultu) {
+  // loysa = höpölöitsy eli epäsana: puheentunnistin ei tunne sanaa
+  // ennestään ja arvaa sen helposti vähän väärin, joten sallitaan
+  // yksi virhe enemmän. Muuten lapsi lukisi oikein ja peli hylkäisi.
+  function sanaOsuu(odotettu, kuultu, loysa) {
     odotettu = normalisoi(odotettu).replace(/ /g, "");
     kuultu = normalisoi(kuultu).replace(/ /g, "");
     if (!odotettu || !kuultu) return false;
     if (odotettu === kuultu) return true;
-    if (etaisyys(odotettu, kuultu) <= toleranssi(odotettu.length)) return true;
+    if (etaisyys(odotettu, kuultu) <= toleranssi(odotettu.length) + (loysa ? 1 : 0)) return true;
     // Tunnistin voi liimata sanoja yhteen tai lapsi lukee sanan pariin kertaan.
     if (odotettu.length >= 3 && kuultu.indexOf(odotettu) >= 0) return true;
     return false;
@@ -80,14 +83,14 @@ var VERTAILU = (function () {
 
   // Sanatehtävä: kokeillaan jokaista kuultua sanaa erikseen sekä kaikkia
   // yhteen liimattuna (lapsi voi lukea "KAK ... KA" tavu kerrallaan).
-  function kokoSanaOsuu(odotettu, kuultuTeksti) {
+  function kokoSanaOsuu(odotettu, kuultuTeksti, loysa) {
     var sanat = sanalista(kuultuTeksti);
     if (!sanat.length) return false;
     for (var i = 0; i < sanat.length; i++) {
-      if (sanaOsuu(odotettu, sanat[i])) return true;
-      if (i + 1 < sanat.length && sanaOsuu(odotettu, sanat[i] + sanat[i + 1])) return true;
+      if (sanaOsuu(odotettu, sanat[i], loysa)) return true;
+      if (i + 1 < sanat.length && sanaOsuu(odotettu, sanat[i] + sanat[i + 1], loysa)) return true;
     }
-    return sanaOsuu(odotettu, sanat.join(""));
+    return sanaOsuu(odotettu, sanat.join(""), loysa);
   }
 
   // Vertaa tavua yhteen kuultuun sanaan (ilman koko tekstin läpikäyntiä).
