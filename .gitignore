@@ -1,0 +1,7 @@
+# Käyttöjärjestelmän roskat
+.DS_Store
+Thumbs.db
+
+# Editorien apukansiot
+.vscode/
+.idea/

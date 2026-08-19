@@ -101,11 +101,11 @@ kannustusta eniten.
 Puheentunnistus vaatii **https-osoitteen** ja mikrofoniluvan. Helpoin
 reitti on GitHubin oma ilmainen sivuhosting:
 
-1. Avaa GitHubissa repon **Settings → Pages**.
-2. Valitse *Deploy from a branch*, haaraksi tämä haara ja kansioksi
+1. Avaa GitHubissa **Settings → Pages**.
+2. Valitse *Deploy from a branch*, haaraksi `main` ja kansioksi
    juuri (`/`). Tallenna.
 3. Hetken päästä peli on osoitteessa
-   `https://<käyttäjä>.github.io/<repo>/tavupeli/`.
+   **https://antsub.github.io/tavupeli/**
 4. Avaa osoite iPadin/iPhonen **Safarissa**, salli mikrofoni ja
    puheentunnistus kysyttäessä.
 5. Halutessasi: jaa-nappi → **Lisää Koti-valikkoon**, niin peli saa
@@ -163,7 +163,7 @@ ja tyyliohjeineen: [`GRAFIIKKA.md`](GRAFIIKKA.md).
 ## Kehittäjälle
 
 ```
-tavupeli/
+.
 ├── index.html            käyttöliittymän rakenne
 ├── tyyli.css             ulkoasu (tumma kirottu koulu -teema)
 ├── js/sisalto.js         ⭐ KAIKKI TEKSTIT JA SISÄLTÖ — muokkaa tätä
@@ -183,7 +183,7 @@ tavupeli/
   höpölöitsyt, kirjaimet, HTML-id:t).
 - Peliä voi avata testitilassa osoitteella `index.html?testi=1`, jolloin
   `window.__tavuritari` paljastaa nykyisen tehtävän automaatiota varten.
-- Paikallinen kokeilu: `python3 -m http.server` tässä kansiossa ja avaa
+- Paikallinen kokeilu: `python3 -m http.server` repon juuressa ja avaa
   `http://localhost:8000` (mikrofoni toimii localhostissa).
 - Yhden tiedoston versio (helppo jakaa tai julkaista missä vain):
   `python3 kokoa_yksi_tiedosto.py` → `tavuritari-yksi-tiedosto.html`.
