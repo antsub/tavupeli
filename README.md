@@ -121,6 +121,52 @@ Ilman mikrofonia tai lupaa peli siirtyy automaattisesti **aikuinen
 kuuntelee** -tilaan: aikuinen kuuntelee lukemisen ja painaa
 😃 MENI HYVIN tai 🔁 UUDESTAAN. Sama tila löytyy asetuksista.
 
+## Puheääni: miten siitä saa luonnollisen
+
+Peli ei tuota ääntä itse vaan käyttää laitteeseen asennettua
+puheääntä — laadun ratkaisee siis laite, ei peli. Peruslaatuinen ääni
+kuulostaa konemaiselta; parannettu ääni on selvästi luonnollisempi ja
+maksuton.
+
+**iPadilla ja iPhonella:** Asetukset → Käyttöapu → Puhuttu sisältö →
+Äänet → Suomi → Satu → lataa **Parannettu**-versio. Tämä on
+yksittäisistä toimista se, joka vaikuttaa äänenlaatuun eniten.
+
+Pelin ⚙️-paneelin **Ääni**-välilehdeltä voi sitten valita käytettävän
+äänen sekä säätää nopeutta ja äänenkorkeutta. Kaksi esiasetusta:
+
+- **👩‍🏫 Selkeä opettaja** — neutraali ja rauhallinen.
+- **🧙 Velho** — matala ja verkkainen, tunnelmallinen.
+
+Velhosävy koskee vain hirviöiden repliikkejä. **Mallilukeminen käyttää
+aina selkeää ääntä**, koska siinä lapsen pitää kuulla tarkasti miltä
+tavu oikeasti kuulostaa — tehostettu ääni haittaisi oppimista.
+
+Jos laitteessa ei ole lainkaan suomenkielistä ääntä, peli varoittaa
+siitä Ääni-välilehdellä: silloin selain lukee suomea vieraskielisellä
+äänellä, mikä kuulostaa oudolta eikä kelpaa malliksi.
+
+## Puheentunnistus: pidä pohjassa
+
+Mikrofoninappia voi käyttää kahdella tavalla:
+
+- **Pidä nappia pohjassa** ja lue, päästä irti kun olet valmis. Tämä on
+  selvästi luotettavin tapa, koska tunnistuksen ei tarvitse arvailla
+  milloin hidas lukija lopetti.
+- **Napauta** ja lue — kuuntelu päättyy hiljaisuuteen.
+
+Jos tunnistus ei toimi, katso ⚙️-paneelin **Mikrofonitesti**-välilehden
+diagnoosilaatikko: se kertoo suoraan mikä puuttuu (https, mikrofonilupa,
+suomenkielinen ääni, upotettu sivu) ja mikä oli viimeisin virhe.
+Tavallisimmat syyt:
+
+| Oire | Syy |
+|---|---|
+| Mikrofoni ei kysy lupaa | Sivu ei ole https-osoitteessa |
+| Ei reagoi mihinkään | Sivu on upotettuna toisen sivun sisällä — avaa omaan ikkunaan |
+| "Tarvitsee nettiyhteyden" | Osa selaimista lähettää puheen tunnistettavaksi verkon yli |
+| Kuulee väärin jatkuvasti | Aja Mikrofonitesti; jos tulos on heikko, käytä "aikuinen kuuntelee" -tilaa |
+
 Puheentunnistuksesta rehellisesti: se on tarkoituksella armollinen ja
 kuulee lyhyet tavut vain suunnilleen. Siksi ruudun kulmassa on aina
 pieni *"aikuinen: meni oikein"* -nappi, jolla aikuinen voi kuitata

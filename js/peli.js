@@ -86,7 +86,13 @@
       vastustaja: null,     // kesken oleva taistelu
       tarina: null,         // { nimi, virke } kun pomotaistelu käynnissä
       tarinatLuettu: {},
-      asetukset: { aanet: true, isotKirjaimet: true, aikuistila: false }
+      asetukset: {
+        aanet: true, isotKirjaimet: true, aikuistila: false,
+        // Puheäänen säädöt. nimi = laitteen äänen nimi (null = paras
+        // löytyvä suomenkielinen), hahmoAani = velhomainen sävy
+        // hirviöiden ja kertojan repliikeissä.
+        aani: { nimi: null, nopeus: 0.8, korkeus: 1.0, hahmoAani: true }
+      }
     };
   }
 
@@ -98,6 +104,9 @@
       var pohja = oletusTila();
       for (var k in pohja) if (t[k] === undefined) t[k] = pohja[k];
       for (var a in pohja.asetukset) if (t.asetukset[a] === undefined) t.asetukset[a] = pohja.asetukset[a];
+      for (var b in pohja.asetukset.aani) {
+        if (t.asetukset.aani[b] === undefined) t.asetukset.aani[b] = pohja.asetukset.aani[b];
+      }
       if (!t.tilastot.paivittain) t.tilastot.paivittain = {};
       if (!t.tilastot.hankalat) t.tilastot.hankalat = {};
       if (!Array.isArray(t.kertaus)) t.kertaus = [];
@@ -866,9 +875,9 @@
   function puhuValinta() {
     if (tehtava.mista === "kirjain") {
       var teksti = tehtava.aanne + (tehtava.esimerkki ? ", kuten " + tehtava.esimerkki : "");
-      PUHE.sano(teksti, 0.7);
+      PUHE.sano(teksti, { rooli: "opetus", nopeus: 0.9 });
     } else {
-      PUHE.sano(tehtava.kohde, 0.7);
+      PUHE.sano(tehtava.kohde, { rooli: "opetus", nopeus: 0.9 });
     }
   }
 
@@ -954,11 +963,11 @@
     var e = $("mikki-teksti");
     if (!tehtava) { e.textContent = "SANO!"; return; }
     if (tehtava.tyyppi === "valinta") { e.textContent = "VALITSE!"; return; }
-    if (tehtava.tyyppi === "kombo") e.textContent = "SYÖKSY! ⚡";
+    if (tehtava.tyyppi === "kombo") e.textContent = "PIDÄ JA LUE ⚡";
     else if (tehtava.palat) e.textContent = "SANO PALA!";
-    else if (tehtava.tyyppi === "tavu") e.textContent = "SANO TAVU!";
-    else if (tehtava.tyyppi === "sana") e.textContent = "LUE SANA!";
-    else e.textContent = "LUE JA HYÖKKÄÄ!";
+    else if (tehtava.tyyppi === "tavu") e.textContent = "PIDÄ JA SANO";
+    else if (tehtava.tyyppi === "sana") e.textContent = "PIDÄ JA LUE";
+    else e.textContent = "PIDÄ JA LUE";
   }
 
   /* ================= ohjainten tila ================= */
@@ -992,13 +1001,36 @@
 
   /* ================= kuuntelu ================= */
 
-  function mikkiPainettu() {
+  /* Mikrofoninappi toimii kahdella tavalla, kumpikin lapselle luonteva:
+       PIDÄ POHJASSA ja lue — kuuntelu päättyy kun sormi nousee. Tämä on
+         selvästi luotettavin tapa, koska tunnistuksen ei tarvitse
+         arvailla milloin hidas lukija lopetti.
+       NAPAUTA ja lue — kuuntelu päättyy hiljaisuuteen, kuten ennenkin. */
+
+  var mikkiPainoAlkoi = 0;
+  var MIKKI_PITO_RAJA = 400;   // tätä pidempi painallus = pidä pohjassa
+
+  function mikkiAlas() {
     AANET.herata();
-    if (PUHE.kuunteleeko()) { PUHE.lopeta("kayttaja"); return; }
-    aloitaKuuntelu();
+    if (PUHE.kuunteleeko()) { PUHE.lopeta("kayttaja"); mikkiPainoAlkoi = 0; return; }
+    mikkiPainoAlkoi = Date.now();
+    aloitaKuuntelu(true);
   }
 
-  function aloitaKuuntelu() {
+  function mikkiYlos() {
+    if (!mikkiPainoAlkoi) return;
+    var kesto = Date.now() - mikkiPainoAlkoi;
+    mikkiPainoAlkoi = 0;
+    if (!PUHE.kuunteleeko()) return;
+    if (kesto >= MIKKI_PITO_RAJA) {
+      PUHE.lopeta("valmis");      // pidettiin pohjassa — lukeminen valmis
+    } else {
+      PUHE.vapautaPito();         // pelkkä napautus — kuunnellaan hiljaisuuteen asti
+      $("mikki-teksti").textContent = "KUUNTELEN…";
+    }
+  }
+
+  function aloitaKuuntelu(pidetaanPohjassa) {
     if (!tehtava || tehtava.ratkaistu) return;
     PUHE.hiljenna();
     var kombo = tehtava.tyyppi === "kombo";
@@ -1011,6 +1043,7 @@
 
     var kaynnistyi = PUHE.aloita({
       jatkuva: jatkuva,
+      pidetaanPohjassa: !!pidetaanPohjassa,
       maksimiMs: kombo ? 22000 : (jatkuva ? 30000 : 10000),
       hiljaisuusMs: 3000,
       eiPuhettaMs: 8000,
@@ -1205,18 +1238,18 @@
     }
     tehtava.apu = true;
     if (tehtava.palat) {
-      PUHE.sano(tehtava.palat.osat[tehtava.palat.indeksi], 0.7);
+      PUHE.sano(tehtava.palat.osat[tehtava.palat.indeksi], { rooli: "opetus", nopeus: 0.9 });
       return;
     }
     if (tehtava.tyyppi === "tavu") {
-      PUHE.sano(tehtava.kohde, 0.7);
+      PUHE.sano(tehtava.kohde, { rooli: "opetus", nopeus: 0.9 });
     } else if (tehtava.tyyppi === "sana") {
       // Ensin tavu kerrallaan, sitten koko sana. Höpölöitsyt luetaan
       // hitaammin — niitä ei voi arvata, ne on pakko kuulla tarkasti.
-      var nopeus = tehtava.epasana ? 0.65 : 0.8;
-      PUHE.sanoJono(tehtava.tavut, function () { PUHE.sano(tehtava.kohde, nopeus); });
+      var nopeus = tehtava.epasana ? 0.8 : 1;
+      PUHE.sanoJono(tehtava.tavut, function () { PUHE.sano(tehtava.kohde, { rooli: "opetus", nopeus: nopeus }); });
     } else {
-      PUHE.sano(tehtava.kohde, 0.75);
+      PUHE.sano(tehtava.kohde, { rooli: "opetus", nopeus: 0.95 });
     }
   }
 
@@ -1584,7 +1617,13 @@
       var v = tila.vastustaja;
       var repliikit = (v.repliikat && v.repliikat.length && Math.random() < 0.7)
         ? v.repliikat : SISALTO.hirvionPelot;
-      kupla(satunnainen(repliikit));
+      var repliikki = satunnainen(repliikit);
+      kupla(repliikki);
+      // Hirviö sanoo uhkauksensa ääneen matalalla velhoäänellä. Tämä on
+      // pelkkää tunnelmaa — mallilukeminen käyttää aina selkeää ääntä.
+      if (tila.asetukset.aanet && tila.asetukset.aani.hahmoAani) {
+        PUHE.sano(repliikki.replace(/[^\wäöåÄÖÅ .,!?-]/g, ""), { rooli: "hahmo" });
+      }
     }
     rakennaTehtava();
     renderoiTehtava();
@@ -1774,6 +1813,66 @@
     }
   }
 
+  /* ================= ääniasetukset =================
+     Peli ei voi tehdä laitteen äänestä parempaa kuin se on, mutta
+     aikuinen voi valita parhaan asennetun äänen ja säätää sen sävyn.
+     ------------------------------------------------------------------ */
+
+  function renderoiAaniAsetukset() {
+    var valikko = $("aani-valinta");
+    var vaihtoehdot = PUHE.aanivaihtoehdot();
+    valikko.textContent = "";
+
+    if (!vaihtoehdot.length) {
+      valikko.appendChild(luo("option", "", "Ei ääniä käytettävissä"));
+      valikko.disabled = true;
+    } else {
+      valikko.disabled = false;
+      vaihtoehdot.forEach(function (v) {
+        var vaihtoehto = luo("option", "", v.nimi + " (" + v.kieli + ")");
+        vaihtoehto.value = v.nimi;
+        valikko.appendChild(vaihtoehto);
+      });
+      var nyt = PUHE.aaniAsetukset().nimi;
+      if (nyt) valikko.value = nyt;
+    }
+
+    var varoitus = $("aani-varoitus");
+    if (!("speechSynthesis" in window)) {
+      varoitus.textContent = "⚠️ Tämä selain ei osaa puhua lainkaan. " +
+        "Mallilukeminen ei ole käytettävissä.";
+      varoitus.classList.remove("piilossa");
+    } else if (!PUHE.onkoSuomiAania()) {
+      varoitus.textContent = "⚠️ Laitteessa ei ole suomenkielistä ääntä, joten " +
+        "peli lukee suomea vieraskielisellä äänellä — se kuulostaa konemaiselta " +
+        "eikä kelpaa mallilukemiseksi. Asenna suomenkielinen ääni laitteen " +
+        "asetuksista, tai käytä \u201daikuinen kuuntelee\u201d -tilaa.";
+      varoitus.classList.remove("piilossa");
+    } else {
+      varoitus.classList.add("piilossa");
+    }
+
+    var aani = tila.asetukset.aani;
+    $("aani-nopeus").value = aani.nopeus;
+    $("aani-korkeus").value = aani.korkeus;
+    $("aani-nopeus-arvo").textContent = Number(aani.nopeus).toFixed(2);
+    $("aani-korkeus-arvo").textContent = Number(aani.korkeus).toFixed(2);
+    $("aani-hahmo").checked = !!aani.hahmoAani;
+  }
+
+  function paivitaAani(muutokset, kokeile) {
+    for (var avain in muutokset) tila.asetukset.aani[avain] = muutokset[avain];
+    PUHE.asetaAaniAsetukset(tila.asetukset.aani);
+    tallenna();
+    renderoiAaniAsetukset();
+    if (kokeile) kokeileAanta();
+  }
+
+  function kokeileAanta() {
+    PUHE.sano("Tervehdys, nuori tavuritari! Lue loitsu ääneen.",
+      { rooli: tila.asetukset.aani.hahmoAani ? "hahmo" : "opetus" });
+  }
+
   /* ================= mikrofonitesti =================
      Pelin suurin epävarmuus ei ole pelisuunnittelussa vaan siinä,
      kuuleeko puheentunnistus juuri tämän lapsen lukemisen. Tämä testi
@@ -1807,6 +1906,31 @@
       });
     }
     return kandidaatit.some(function (k) { return VERTAILU.lauseOsuu(kohde.teksti, k).ok; });
+  }
+
+  function renderoiDiagnoosi() {
+    var t = PUHE.laitetiedot();
+    var alusta = $("mikkitesti-diagnoosi");
+    alusta.textContent = "";
+
+    function rivi(nimi, kunnossa, arvo) {
+      var r = luo("div", "diagnoosi-rivi" + (kunnossa ? "" : " pielessa"));
+      r.appendChild(luo("span", "diagnoosi-merkki", kunnossa ? "✔" : "✖"));
+      r.appendChild(luo("span", "diagnoosi-nimi", nimi));
+      r.appendChild(luo("span", "diagnoosi-arvo", arvo));
+      alusta.appendChild(r);
+    }
+
+    rivi("Selain tukee puheentunnistusta", t.tunnistusTuettu,
+      t.tunnistusTuettu ? "kyllä" : "ei — kokeile Safaria");
+    rivi("Suojattu yhteys (https)", t.https,
+      t.https ? "kyllä" : "ei — tunnistus ei toimi ilman https:ää");
+    rivi("Sivu on omassa ikkunassaan", !t.kehyksessa,
+      t.kehyksessa ? "ei — upotettu sivu ei saa mikrofonia" : "kyllä");
+    rivi("Suomenkielinen puheääni", t.suomiAani, t.valittuAani);
+    if (t.viimeVirhe) {
+      rivi("Viimeisin virhe", false, t.viimeVirhe.selitys);
+    }
   }
 
   function aloitaMikkitesti() {
@@ -1989,6 +2113,8 @@
     $("omat-sanat-teksti").value = omatSanat.join("\n");
     renderoiOmatTarinat();
     renderoiRaportti();
+    renderoiAaniAsetukset();
+    renderoiDiagnoosi();
     naytaPeite("vanhemmat");
   }
 
@@ -2014,7 +2140,7 @@
   }
 
   function vaihdaValilehti(nimi) {
-    ["asetukset", "sanat", "tarinat", "raportti", "mikkitesti", "ohjeet"].forEach(function (v) {
+    ["asetukset", "sanat", "tarinat", "aani", "raportti", "mikkitesti", "ohjeet"].forEach(function (v) {
       $("vali-" + v).classList.toggle("nakyy", v === nimi);
     });
     document.querySelectorAll("#vanhemmat nav button").forEach(function (b) {
@@ -2067,6 +2193,7 @@
     AANET.herata();
     PUHE.herata();
     AANET.asetaMykistys(!tila.asetukset.aanet);
+    PUHE.asetaAaniAsetukset(tila.asetukset.aani);
     $("alku").classList.remove("nakyy");
     $("peli").classList.add("nakyy");
     var alue = nykyinenAlue();
@@ -2104,14 +2231,38 @@
   function kytke() {
     rakennaAvatarit();
 
-    if (!PUHE.tuettu()) {
-      $("tuki-ilmoitus").textContent =
-        "Tämä selain ei tue puheentunnistusta, joten peli toimii " +
-        "\"aikuinen kuuntelee\" -tilassa. iPadilla ja iPhonella avaa peli Safarissa.";
+    // Kerrotaan heti alkuruudussa, jos mikrofoni ei voi toimia tässä
+    // ympäristössä. Muuten lapsi vain ihmettelee miksi peli ei kuule.
+    var tiedot = PUHE.laitetiedot();
+    var ilmoitus = "";
+    if (tiedot.kehyksessa) {
+      ilmoitus = "🎤 Peli on avattu toisen sivun sisälle upotettuna, eikä " +
+        "selain anna silloin mikrofonia käyttöön. Avaa peli omaan ikkunaansa, " +
+        "niin puheentunnistus toimii. Siihen asti peli toimii " +
+        "\u201daikuinen kuuntelee\u201d -tilassa — ja tasot 1–2 " +
+        "(napautustehtävät) toimivat joka tapauksessa.";
+    } else if (!tiedot.https) {
+      ilmoitus = "🎤 Puheentunnistus vaatii https-osoitteen, eikä tämä sivu ole " +
+        "sellainen. Peli toimii nyt \u201daikuinen kuuntelee\u201d -tilassa.";
+    } else if (!PUHE.tuettu()) {
+      ilmoitus = "🎤 Tämä selain ei tue puheentunnistusta, joten peli toimii " +
+        "\u201daikuinen kuuntelee\u201d -tilassa. iPadilla ja iPhonella avaa " +
+        "peli Safarissa.";
+    } else if (!PUHE.onkoSuomiAania()) {
+      ilmoitus = "🔈 Laitteessa ei ole suomenkielistä puheääntä, joten peli lukee " +
+        "mallit vieraskielisellä äänellä. Katso ⚙️ → Ääni.";
     }
+    $("tuki-ilmoitus").textContent = ilmoitus;
 
     $("pelaa-nappi").addEventListener("click", aloitaPeli);
-    $("mikki-nappi").addEventListener("click", mikkiPainettu);
+    var mikkiNappi = $("mikki-nappi");
+    mikkiNappi.addEventListener("pointerdown", function (e) {
+      e.preventDefault();
+      mikkiAlas();
+    });
+    mikkiNappi.addEventListener("pointerup", mikkiYlos);
+    mikkiNappi.addEventListener("pointercancel", mikkiYlos);
+    mikkiNappi.addEventListener("pointerleave", mikkiYlos);
 
     $("kuuntele-nappi").addEventListener("click", function () {
       AANET.herata();
@@ -2162,6 +2313,37 @@
       avaaKauppa();
     });
     $("kauppa-sulje").addEventListener("click", function () { piilotaPeite("kauppa"); });
+
+    $("aani-valinta").addEventListener("change", function () {
+      paivitaAani({ nimi: this.value }, true);
+    });
+    $("aani-nopeus").addEventListener("input", function () {
+      $("aani-nopeus-arvo").textContent = Number(this.value).toFixed(2);
+      tila.asetukset.aani.nopeus = parseFloat(this.value);
+      PUHE.asetaAaniAsetukset(tila.asetukset.aani);
+    });
+    $("aani-nopeus").addEventListener("change", function () { paivitaAani({}, true); });
+    $("aani-korkeus").addEventListener("input", function () {
+      $("aani-korkeus-arvo").textContent = Number(this.value).toFixed(2);
+      tila.asetukset.aani.korkeus = parseFloat(this.value);
+      PUHE.asetaAaniAsetukset(tila.asetukset.aani);
+    });
+    $("aani-korkeus").addEventListener("change", function () { paivitaAani({}, true); });
+    $("aani-hahmo").addEventListener("change", function () {
+      paivitaAani({ hahmoAani: this.checked }, false);
+    });
+    $("aani-esiasetus-selkea").addEventListener("click", function () {
+      PUHE.herata();
+      paivitaAani({ nopeus: 0.8, korkeus: 1.0, hahmoAani: false }, true);
+    });
+    $("aani-esiasetus-velho").addEventListener("click", function () {
+      PUHE.herata();
+      paivitaAani({ nopeus: 0.7, korkeus: 0.75, hahmoAani: true }, true);
+    });
+    $("aani-kokeile").addEventListener("click", function () {
+      PUHE.herata();
+      kokeileAanta();
+    });
 
     $("mikkitesti-aloita").addEventListener("click", aloitaMikkitesti);
     $("mikkitesti-kuuntele").addEventListener("click", mikkitestiKuuntele);

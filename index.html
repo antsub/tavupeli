@@ -96,7 +96,7 @@
 
     <footer id="ohjaimet">
       <button id="kuuntele-nappi" class="apunappi" aria-label="Kuuntele malli">🔊<br>Kuuntele</button>
-      <button id="mikki-nappi" aria-label="Aloita puhuminen">
+      <button id="mikki-nappi" aria-label="Pidä pohjassa ja lue ääneen">
         <span class="mikki-kuva">🎤</span>
         <span id="mikki-teksti">SANO!</span>
       </button>
@@ -191,6 +191,7 @@
         <button data-vali="asetukset" class="valittu">Asetukset</button>
         <button data-vali="sanat">Omat sanat</button>
         <button data-vali="tarinat">Omat tarinat</button>
+        <button data-vali="aani">Ääni</button>
         <button data-vali="raportti">Raportti</button>
         <button data-vali="mikkitesti">Mikrofonitesti</button>
         <button data-vali="ohjeet">Ohjeet</button>
@@ -250,6 +251,42 @@
         <div id="omat-tarinat-lista"></div>
       </section>
 
+      <section id="vali-aani" class="valilehti">
+        <p id="aani-varoitus" class="aani-varoitus piilossa"></p>
+
+        <label class="rivi pystyyn">
+          <span>Puheääni</span>
+          <select id="aani-valinta"></select>
+        </label>
+        <p class="vanhemmat-vihje">Äänen laadun ratkaisee laite, ei peli.
+          iPadilla ja iPhonella kannattaa ladata parannettu suomenkielinen
+          ääni: <strong>Asetukset → Käyttöapu → Puhuttu sisältö → Äänet →
+          Suomi → Satu</strong> ja lataa <em>Parannettu</em>-versio. Se
+          kuulostaa selvästi luonnollisemmalta kuin peruslaatuinen.</p>
+
+        <label class="rivi pystyyn">
+          <span>Puhenopeus: <b id="aani-nopeus-arvo">0.8</b></span>
+          <input type="range" id="aani-nopeus" min="0.5" max="1.2" step="0.05" value="0.8">
+        </label>
+
+        <label class="rivi pystyyn">
+          <span>Äänenkorkeus: <b id="aani-korkeus-arvo">1.0</b></span>
+          <input type="range" id="aani-korkeus" min="0.5" max="1.4" step="0.05" value="1.0">
+        </label>
+
+        <label class="rivi">
+          <input type="checkbox" id="aani-hahmo" checked>
+          <span>Velhoääni hirviöiden repliikeissä (matala ja verkkainen).
+            Mallilukeminen käyttää aina selkeää ääntä.</span>
+        </label>
+
+        <div class="aani-napit">
+          <button id="aani-esiasetus-selkea" class="isonappi vihrea">👩‍🏫 Selkeä opettaja</button>
+          <button id="aani-esiasetus-velho" class="isonappi">🧙 Velho</button>
+        </div>
+        <button id="aani-kokeile" class="isonappi keltainen">🔊 Kokeile ääntä</button>
+      </section>
+
       <section id="vali-raportti" class="valilehti">
         <p class="vanhemmat-vihje">Miten harjoittelu on sujunut.
           <em>Sujui itsenäisesti</em> = meni ensimmäisellä yrityksellä ilman apuja.
@@ -274,6 +311,8 @@
           lukee ruudulla näkyvän sanan ääneen. Peli kertoo, mitä se kuuli ja
           hyväksyikö se suorituksen. Sinä kerrot, lukiko lapsi <em>oikeasti</em>
           oikein. Näistä kahdesta tiedosta syntyy tulos.</p>
+
+        <div id="mikkitesti-diagnoosi" class="diagnoosi"></div>
 
         <div id="mikkitesti-alku">
           <button id="mikkitesti-aloita" class="isonappi">🎤 ALOITA TESTI</button>
