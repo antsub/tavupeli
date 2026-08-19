@@ -101,11 +101,15 @@ kannustusta eniten.
 Puheentunnistus vaatii **https-osoitteen** ja mikrofoniluvan. Helpoin
 reitti on GitHubin oma ilmainen sivuhosting:
 
-1. Avaa GitHubissa **Settings → Pages**.
-2. Valitse *Deploy from a branch*, haaraksi `main` ja kansioksi
-   juuri (`/`). Tallenna.
-3. Hetken päästä peli on osoitteessa
+1. Avaa **https://github.com/antsub/tavupeli/settings/pages**
+2. Kohdassa *Build and deployment* → **Source**: valitse
+   **Deploy from a branch**.
+3. *Branch*: valitse **`main`** ja kansioksi **`/ (root)`** → **Save**.
+4. Odota 1–2 minuuttia. Peli on sitten osoitteessa
    **https://antsub.github.io/tavupeli/**
+
+   ⚠️ Tämän voi tehdä vain kirjautunut käyttäjä: GitHub estää
+   Pages-sivuston luonnin ohjelmallisesti kaikilta sovellustunnuksilta.
 4. Avaa osoite iPadin/iPhonen **Safarissa**, salli mikrofoni ja
    puheentunnistus kysyttäessä.
 5. Halutessasi: jaa-nappi → **Lisää Koti-valikkoon**, niin peli saa
