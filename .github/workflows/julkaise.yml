@@ -1,8 +1,10 @@
 # Julkaisee pelin GitHub Pagesiin osoitteeseen
 # https://antsub.github.io/tavupeli/ aina kun main-haaraan tulee muutos.
 #
-# Työnkulku myös KYTKEE Pagesin päälle itse (configure-pages: enablement),
-# joten asetuksia ei tarvitse käydä säätämässä käsin.
+# Työ on jaettu kahtia tarkoituksella: Pages KYTKETÄÄN PÄÄLLE
+# ensimmäisessä työssä, koska toisen työn "environment: github-pages"
+# on olemassa vasta sen jälkeen. Jos molemmat olisivat samassa työssä,
+# työ kaatuisi ympäristön puutteeseen ennen kuin ehtisi luoda sen.
 
 name: Julkaise peli
 
@@ -22,24 +24,17 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  testaa:
+  valmistele:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+
       - name: Aja pelin testit
         run: node testit/testit.js
-
-  julkaise:
-    needs: testaa
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.julkaisu.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@v4
 
       - name: Ota Pages käyttöön ja määritä se
         uses: actions/configure-pages@v5
@@ -51,6 +46,13 @@ jobs:
         with:
           path: .
 
-      - name: Julkaise
+  julkaise:
+    needs: valmistele
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.julkaisu.outputs.page_url }}
+    steps:
+      - name: Julkaise Pagesiin
         id: julkaisu
         uses: actions/deploy-pages@v4
