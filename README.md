@@ -167,6 +167,25 @@ Tavallisimmat syyt:
 | "Tarvitsee nettiyhteyden" | Osa selaimista lähettää puheen tunnistettavaksi verkon yli |
 | Kuulee väärin jatkuvasti | Aja Mikrofonitesti; jos tulos on heikko, käytä "aikuinen kuuntelee" -tilaa |
 
+### Miksi yksittäinen tavu on tunnistukselle vaikein
+
+Puheentunnistin käyttää kielimallia ja pyrkii aina tuottamaan **oikeita
+sanoja**. Yksinäinen "KA" ei ole sana, joten tunnistin vääntää sen
+muotoon "kaa", "kah", "ga" tai vaikka "kaks" — vaikka lapsi luki sen
+täysin oikein. Sanat tunnistuvat paremmin juuri siksi, että ne ovat
+kielimallissa.
+
+Siksi peli ei vertaa tavuja kirjaimina vaan **äänteinä**: kahdennukset
+puretaan (kaa = ka) ja tunnistimen jatkuvasti sekoittamat parit k/g,
+t/d ja p/b niputetaan samaan luokkaan. Vokaalia ei sen sijaan anneta
+anteeksi — juuri se erottaa KA:n ja KU:n toisistaan. Tavoitetavu
+etsitään myös kuullun sanan sisältä (KA löytyy "kanavasta") ja lapsen
+kirjaintavauksesta ("koo — aa").
+
+Jos tavu ei silti mene läpi, peli neuvoo venyttämään sen (KAAA) tai
+sanomaan sen kahdesti — molemmat auttavat tunnistinta oikeasti, koska
+ne pidentävät liian lyhyttä äännähdystä.
+
 Puheentunnistuksesta rehellisesti: se on tarkoituksella armollinen ja
 kuulee lyhyet tavut vain suunnilleen. Siksi ruudun kulmassa on aina
 pieni *"aikuinen: meni oikein"* -nappi, jolla aikuinen voi kuitata

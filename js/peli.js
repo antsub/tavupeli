@@ -1083,7 +1083,20 @@
   }
 
   function eiKuulunut() {
-    kupla("En kuullut mitään! 👂 Paina nappia ja sano rohkeasti!");
+    // Yksinäinen tavu on tunnistimelle hyvin lyhyt ääni — se ehtii
+    // ohi ennen kuin tunnistus käynnistyy kunnolla. Venyttäminen ja
+    // toistaminen auttavat oikeasti, joten neuvotaan siihen.
+    if (tehtava && tehtava.tyyppi === "tavu") {
+      var vinkit = [
+        "En kuullut! 👂 Sano se pitkään: " + muotoileSana(tehtava.kohde) + "AAA!",
+        "En kuullut! 👂 Sano se kahdesti: " +
+          muotoileSana(tehtava.kohde) + " " + muotoileSana(tehtava.kohde) + "!",
+        "En kuullut! 👂 Pidä nappia pohjassa koko ajan kun puhut."
+      ];
+      kupla(satunnainen(vinkit));
+      return;
+    }
+    kupla("En kuullut mitään! 👂 Pidä nappia pohjassa ja lue rohkeasti!");
   }
 
   /* ================= tarkistus ================= */

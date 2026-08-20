@@ -10,6 +10,13 @@
 
 var VERTAILU = (function () {
 
+  // Tavutinta käytetään kuullun sanan pilkkomiseen: jos tunnistin
+  // kuuli "kanava", tavoitetavu "KA" löytyy sen ensimmäisestä tavusta.
+  var TAVUTIN = (typeof TAVUTUS !== "undefined" && TAVUTUS) ? TAVUTUS : null;
+  if (!TAVUTIN && typeof require === "function") {
+    try { TAVUTIN = require("./tavutus.js"); } catch (e) { TAVUTIN = null; }
+  }
+
   // Pienet kirjaimet, vain kirjaimet, yksi väli sanojen väliin.
   function normalisoi(teksti) {
     return String(teksti || "")
@@ -43,6 +50,107 @@ var VERTAILU = (function () {
     return edellinen[n];
   }
 
+  /* ------------------------------------------------------------------
+     FONEETTINEN VERTAILU
+
+     Puheentunnistin käyttää kielimallia ja pyrkii aina tuottamaan
+     OIKEITA SANOJA. Yksinäinen tavu ei ole sana, joten "KA" tulee ulos
+     muodossa "kaa", "kah", "ga", "kaks" tai jonain aivan muuna — vaikka
+     lapsi luki sen täysin oikein. Sama koskee höpölöitsyjä.
+
+     Siksi tavuja ei verrata kirjaimina vaan äänteinä: kahdennukset
+     puretaan (kaa -> ka) ja soinnilliset/soinnittomat parit niputetaan
+     samaan luokkaan (k/g, t/d, p/b), koska tunnistin sekoittaa ne
+     jatkuvasti. Vokaalit sen sijaan pidetään erillään: juuri vokaali
+     erottaa tavut KA ja KU toisistaan, eikä sitä saa antaa anteeksi.
+     ------------------------------------------------------------------ */
+
+  var KONSONANTTILUOKAT = {
+    k: "K", g: "K", c: "K", q: "K",
+    t: "T", d: "T",
+    p: "P", b: "P",
+    s: "S", z: "S", "š": "S", x: "S",
+    f: "V", v: "V", w: "V",
+    h: "H", m: "M", n: "N", l: "L", r: "R", j: "J", "ž": "S"
+  };
+
+  function onVokaali(c) {
+    return "aeiouyäöå".indexOf(c) >= 0;
+  }
+
+  // "kaa" -> "Ka", "gaa" -> "Ka", "tid" -> "TiT"
+  function foneettinen(teksti) {
+    var t = normalisoi(teksti).replace(/ /g, "").replace(/å/g, "o");
+    var ulos = "";
+    var edellinen = "";
+    for (var i = 0; i < t.length; i++) {
+      var c = t[i];
+      if (c === edellinen) continue;          // kahdennus pois: kk -> k, aa -> a
+      edellinen = c;
+      ulos += onVokaali(c) ? c : (KONSONANTTILUOKAT[c] || c.toUpperCase());
+    }
+    return ulos;
+  }
+
+  // Tavun ydin: alkukonsonantti(luokkana) + ensimmäinen vokaali.
+  // Tämä erottaa KA:n KU:sta ja TA:sta, muttei kompastu siihen
+  // kuuliko tunnistin lopusta ylimääräistä.
+  function tavuYdin(teksti) {
+    var f = foneettinen(teksti);
+    var alku = "";
+    var i = 0;
+    while (i < f.length && !onVokaali(f[i])) { alku += f[i]; i++; }
+    var vokaali = i < f.length ? f[i] : "";
+    return { alku: alku, vokaali: vokaali };
+  }
+
+  // Vastaako kuultu tavu tavoitetta? Lyhyillä tavuilla vaaditaan sama
+  // alkuäänne ja sama vokaali; pidemmillä sallitaan yksi poikkeama.
+  function tavutVastaavat(tavoite, kuultu) {
+    var a = foneettinen(tavoite);
+    var b = foneettinen(kuultu);
+    if (!a || !b) return false;
+    if (a === b) return true;
+
+    var ya = tavuYdin(tavoite);
+    var yb = tavuYdin(kuultu);
+    if (!ya.vokaali || !yb.vokaali) return false;
+
+    // Lyhyt tavu (KA, PIS): alkuäänne ja vokaali ratkaisevat.
+    if (a.length <= 3) {
+      return ya.alku === yb.alku && ya.vokaali === yb.vokaali;
+    }
+    // Pidempi tavu: alkuäänteen ja vokaalin lisäksi sallitaan
+    // yksi ylimääräinen tai puuttuva äänne.
+    return ya.alku === yb.alku && ya.vokaali === yb.vokaali &&
+      etaisyys(a, b) <= 1;
+  }
+
+  /* Kirjainten nimet. Aloitteleva lukija tavaa usein kirjain kerrallaan
+     ("koo — aa"), ja tunnistin kirjoittaa nimet auki. Muunnetaan ne
+     takaisin kirjaimiksi, jotta "koo aa" tunnistetaan tavuksi KA. */
+  var KIRJAINTEN_NIMET = {
+    aa: "a", bee: "b", see: "c", dee: "d", ee: "e", "äf": "f", af: "f",
+    gee: "g", hoo: "h", ii: "i", jii: "j", koo: "k", "äl": "l", el: "l",
+    "ämmä": "m", "äm": "m", em: "m", "än": "n", en: "n", oo: "o",
+    pee: "p", kuu: "q", "är": "r", er: "r", "äs": "s", es: "s",
+    tee: "t", uu: "u", vee: "v", kaksois: "w", "äks": "x", yy: "y",
+    tseta: "z", "ää": "ä", "öö": "ö", "åå": "å"
+  };
+
+  // Palauttaa kirjaimiksi puretun jonon, jos KAIKKI sanat ovat
+  // kirjainten nimiä — muuten null.
+  function kirjaimiksi(sanat) {
+    if (!sanat.length) return null;
+    var ulos = "";
+    for (var i = 0; i < sanat.length; i++) {
+      var kirjain = KIRJAINTEN_NIMET[sanat[i]];
+      if (!kirjain) return null;
+      ulos += kirjain;
+    }
+    return ulos;
+  }
+
   // Montako virhettä sallitaan sanan pituuden mukaan.
   function toleranssi(pituus) {
     if (pituus <= 4) return 1;
@@ -62,23 +170,40 @@ var VERTAILU = (function () {
     if (etaisyys(odotettu, kuultu) <= toleranssi(odotettu.length) + (loysa ? 1 : 0)) return true;
     // Tunnistin voi liimata sanoja yhteen tai lapsi lukee sanan pariin kertaan.
     if (odotettu.length >= 3 && kuultu.indexOf(odotettu) >= 0) return true;
+    // Äänteinä verrattuna: k/g, t/d ja p/b menevät tunnistimelta sekaisin
+    // ja kahdennukset katoavat. Tämä pelastaa etenkin höpölöitsyt.
+    var fa = foneettinen(odotettu), fb = foneettinen(kuultu);
+    if (fa && fa === fb) return true;
+    if (etaisyys(fa, fb) <= toleranssi(fa.length) - (loysa ? 0 : 1)) return true;
     return false;
   }
 
-  // Tavutehtävä: hyväksytään myös se, että tunnistin kuulee tavun osana
-  // sanaa ("KIS" -> "kissa") tai vähän venytettynä ("KA" -> "kaa").
+  /* Tavutehtävä. Tunnistin ei tuota yksinäisiä tavuja vaan oikeita
+     sanoja, joten tavoitetavua etsitään monella tapaa:
+       1. koko kuultu sana äänteinä ("kaa" = "ka")
+       2. kuullun sanan ALUSTA ("KIS" löytyy sanasta "kissa")
+       3. kuullun sanan mistä tahansa TAVUSTA ("KA" löytyy "kanavasta")
+       4. kaikki sanat yhteen liimattuina (lapsi tavasi kirjaimittain) */
   function tavuOsuu(tavu, kuultuTeksti) {
-    tavu = normalisoi(tavu).replace(/ /g, "");
-    if (!tavu) return false;
+    var tavoite = normalisoi(tavu).replace(/ /g, "");
+    if (!tavoite) return false;
     var sanat = sanalista(kuultuTeksti);
+
     for (var i = 0; i < sanat.length; i++) {
       var s = sanat[i];
-      if (s === tavu) return true;
-      if (tavu.length >= 2 && s.indexOf(tavu) === 0) return true;      // "kis" ~ "kissa"
-      if (s[0] === tavu[0] && etaisyys(tavu, s) <= 1) return true;     // "ka" ~ "kaa"
+      if (tavuTokenOsuu(tavoite, s)) return true;
     }
-    // Lapsi saattoi sanoa tavun kirjain kerrallaan ("koo aa").
-    return sanat.length > 1 && sanaOsuu(tavu, sanat.join(""));
+
+    // Lapsi saattoi sanoa tavun kirjain kerrallaan ("koo aa") tai
+    // tunnistin pilkkoi yhden tavun kahdeksi sanaksi.
+    if (sanat.length > 1) {
+      var yhteen = sanat.join("");
+      if (tavuTokenOsuu(tavoite, yhteen)) return true;
+      if (sanaOsuu(tavoite, yhteen)) return true;
+    }
+    var tavattu = kirjaimiksi(sanat);
+    if (tavattu && tavuTokenOsuu(tavoite, tavattu)) return true;
+    return false;
   }
 
   // Sanatehtävä: kokeillaan jokaista kuultua sanaa erikseen sekä kaikkia
@@ -86,6 +211,8 @@ var VERTAILU = (function () {
   function kokoSanaOsuu(odotettu, kuultuTeksti, loysa) {
     var sanat = sanalista(kuultuTeksti);
     if (!sanat.length) return false;
+    var tavattu = kirjaimiksi(sanat);
+    if (tavattu && sanaOsuu(odotettu, tavattu, loysa)) return true;
     for (var i = 0; i < sanat.length; i++) {
       if (sanaOsuu(odotettu, sanat[i], loysa)) return true;
       if (i + 1 < sanat.length && sanaOsuu(odotettu, sanat[i] + sanat[i + 1], loysa)) return true;
@@ -93,13 +220,30 @@ var VERTAILU = (function () {
     return sanaOsuu(odotettu, sanat.join(""), loysa);
   }
 
-  // Vertaa tavua yhteen kuultuun sanaan (ilman koko tekstin läpikäyntiä).
+  // Vertaa tavoitetavua yhteen kuultuun sanaan.
   function tavuTokenOsuu(tavu, token) {
-    tavu = normalisoi(tavu).replace(/ /g, "");
-    if (!tavu || !token) return false;
-    if (token === tavu) return true;
-    if (tavu.length >= 2 && token.indexOf(tavu) === 0) return true;
-    return token[0] === tavu[0] && etaisyys(tavu, token) <= 1;
+    var tavoite = normalisoi(tavu).replace(/ /g, "");
+    token = normalisoi(token).replace(/ /g, "");
+    if (!tavoite || !token) return false;
+    if (token === tavoite) return true;
+
+    // Koko kuultu sana äänteinä: "kaa" ~ "ka", "gaa" ~ "ka"
+    if (tavutVastaavat(tavoite, token)) return true;
+
+    // Tavoitetavu kuullun sanan alussa: "KIS" ~ "kissa"
+    if (tavoite.length >= 2 && token.indexOf(tavoite) === 0) return true;
+
+    // Tavoitetavu jonain kuullun sanan tavuna: "KA" ~ "ka-na-va".
+    // Rajataan lyhyisiin sanoihin, ettei mikä tahansa pitkä sana kelpaa.
+    if (TAVUTIN) {
+      var tavut = TAVUTIN.tavuta(token);
+      if (tavut.length <= 4) {
+        for (var i = 0; i < tavut.length; i++) {
+          if (tavutVastaavat(tavoite, tavut[i])) return true;
+        }
+      }
+    }
+    return false;
   }
 
   // Kombosyöksy ja palat: montako osaa listasta (alkaen kohdasta 'alku')
@@ -164,6 +308,8 @@ var VERTAILU = (function () {
     normalisoi: normalisoi,
     sanalista: sanalista,
     etaisyys: etaisyys,
+    foneettinen: foneettinen,
+    tavutVastaavat: tavutVastaavat,
     sanaOsuu: sanaOsuu,
     tavuOsuu: tavuOsuu,
     tavuTokenOsuu: tavuTokenOsuu,

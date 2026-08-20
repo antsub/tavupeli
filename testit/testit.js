@@ -84,6 +84,52 @@ vaadi(!t3.ok, "lause: väärä sisältö hylätään");
 var t4 = VERTAILU.lauseOsuu("Kissa haisee pahalle.", "tota kissa haisee tosi pahalle");
 vaadi(t4.ok, "lause: ylimääräiset täytesanat sallitaan");
 
+/* --- Foneettinen tavuvertailu ---
+   Puheentunnistin ei tuota yksinäisiä tavuja vaan oikeita sanoja, joten
+   tavoitetavu pitää löytää kuullun sanan seasta. Yhtä tärkeää on, ETTEI
+   väärä tavu mene läpi: juuri vokaali erottaa KA:n ja KU:n. */
+
+console.log("Foneettinen tavuvertailu:");
+
+// Näiden PITÄÄ osua — kaikki ovat uskottavia tunnistimen tulkintoja
+// siitä, että lapsi luki "KA".
+["ka", "kaa", "kah", "ga", "gaa", "kanava", "kakka", "ka ka",
+ "koo aa", "kaks", "kaadan"].forEach(function (kuultu) {
+  vaadi(VERTAILU.tavuOsuu("KA", kuultu), "KA pitäisi osua kuultuun '" + kuultu + "'");
+});
+
+// Näiden EI saa osua: eri vokaali tai eri alkuäänne = eri tavu.
+["ku", "ko", "ki", "ta", "pa", "talo", "sano", "minä", "koo uu", ""]
+  .forEach(function (kuultu) {
+  vaadi(!VERTAILU.tavuOsuu("KA", kuultu), "KA ei saisi osua kuultuun '" + kuultu + "'");
+});
+
+// Pidemmät tavut
+["pis", "piss", "pissa", "bis"].forEach(function (kuultu) {
+  vaadi(VERTAILU.tavuOsuu("PIS", kuultu), "PIS pitäisi osua kuultuun '" + kuultu + "'");
+});
+["pus", "pas", "tis", "kis"].forEach(function (kuultu) {
+  vaadi(!VERTAILU.tavuOsuu("PIS", kuultu), "PIS ei saisi osua kuultuun '" + kuultu + "'");
+});
+
+// Foneettinen normalisointi
+vaadi(VERTAILU.foneettinen("kaa") === VERTAILU.foneettinen("ka"),
+  "kahdennus katoaa: kaa = ka");
+vaadi(VERTAILU.foneettinen("gaa") === VERTAILU.foneettinen("ka"),
+  "k ja g ovat sama äänneluokka");
+vaadi(VERTAILU.foneettinen("ta") !== VERTAILU.foneettinen("ka"),
+  "t ja k ovat eri äänneluokat");
+vaadi(VERTAILU.foneettinen("ku") !== VERTAILU.foneettinen("ka"),
+  "vokaali erottaa tavut");
+
+// Höpölöitsyt: tunnistin arvaa epäsanan usein lähelle muttei oikein
+vaadi(VERTAILU.kokoSanaOsuu("PÖMPPELI", "pömpeli", true),
+  "höpölöitsy: pömpeli kelpaa");
+vaadi(VERTAILU.kokoSanaOsuu("KRAPSUTI", "grapsuti", true),
+  "höpölöitsy: k/g-sekaannus kelpaa");
+vaadi(!VERTAILU.kokoSanaOsuu("PÖMPPELI", "banaani", true),
+  "höpölöitsy: eri sana ei kelpaa");
+
 // Kombosyöksyn jonovertailu
 vaadi(VERTAILU.jonoOsuu(["KA", "SU", "PI"], 0, "ka su pi", true) === 3,
   "jono: kaikki kolme tavua putkeen");
