@@ -81,17 +81,48 @@ var PUHE = (function () {
     return lista.filter(function (t) { return t.length > 0; });
   }
 
-  // Päättää kuuntelun ja ilmoittaa tuloksen pelille.
-  function lopeta(syy) {
-    if (!kuuntelee) return;
+  /* Päättää kuuntelun ja ilmoittaa tuloksen pelille.
+
+     TÄRKEÄ YKSITYISKOHTA: Web Speech API ei toimita lopullista tulosta
+     silloin kun stop() kutsutaan, vaan vasta sen JÄLKEEN — tyypillisesti
+     muutaman sadan millisekunnin päästä. Jos tulos arvioitaisiin heti,
+     lyhyt lukusuoritus näyttäisi siltä ettei mitään kuultu. Siksi
+     stop():n jälkeen odotetaan hetki, että tunnistin ehtii vastata. */
+
+  var lopettamassa = false;
+  var lopetusSyy = null;
+  var lopetusAjastin = null;
+
+  function ilmoitaLoppu() {
+    clearTimeout(lopetusAjastin);
+    lopetusAjastin = null;
+    if (!kuuntelee && !lopettamassa) return;
+    lopettamassa = false;
     kuuntelee = false;
+    peruAjastimet();
+    var a = asetukset;
+    asetukset = null;
+    var syy = lopetusSyy || "loppu";
+    lopetusSyy = null;
+    if (a && a.loppu) a.loppu(kokoTeksti(), kaikkiKandidaatit(), syy);
+  }
+
+  function lopeta(syy) {
+    if (!kuuntelee || lopettamassa) return;
+    lopetusSyy = syy || "loppu";
     peruAjastimet();
     if (tunnistin) {
       try { tunnistin.stop(); } catch (e) { /* jo pysähtynyt */ }
     }
-    var a = asetukset;
-    asetukset = null;
-    if (a && a.loppu) a.loppu(kokoTeksti(), kaikkiKandidaatit(), syy || "loppu");
+
+    // Peruutus ja virheet eivät tuota tulosta, joten niitä ei odoteta.
+    if (syy === "kayttaja" || syy === "estetty" || syy === "virhe") {
+      ilmoitaLoppu();
+      return;
+    }
+
+    lopettamassa = true;
+    lopetusAjastin = setTimeout(ilmoitaLoppu, 2200);
   }
 
   // Napautus (lyhyt painallus) vaihtaa pidä-pohjassa -tilasta
@@ -137,6 +168,10 @@ var PUHE = (function () {
     kandidaatit = [];
     uudelleenKaynnistykset = 0;
     viimeisinVirhe = null;
+    clearTimeout(lopetusAjastin);
+    lopetusAjastin = null;
+    lopettamassa = false;
+    lopetusSyy = null;
     kuuntelee = true;
 
     tunnistin = new SR();
@@ -164,14 +199,29 @@ var PUHE = (function () {
         }
       }
       lopullinen = lopullinen.replace(/\s+/g, " ");
-      viritaHiljaisuusAjastin();
       if (asetukset && asetukset.tulos) asetukset.tulos(kokoTeksti(), kaikkiKandidaatit());
+
+      // Odotettu tulos saapui stop():n jälkeen — ei jäädä odottamaan turhaan.
+      if (lopettamassa) {
+        if (lopullinen.trim()) {
+          clearTimeout(lopetusAjastin);
+          lopetusAjastin = setTimeout(ilmoitaLoppu, 350);
+        }
+        return;
+      }
+      viritaHiljaisuusAjastin();
     };
 
     tunnistin.onerror = function (e) {
-      if (!kuuntelee) return;
+      if (!kuuntelee && !lopettamassa) return;
       var virhe = e && e.error;
       viimeisinVirhe = { koodi: virhe, selitys: virheSelitys(virhe) };
+      if (lopettamassa) {
+        // Odotimme jo tulosta; "no-speech" ja "aborted" ovat tässä
+        // vaiheessa normaaleja eivätkä muuta lopputulosta.
+        if (virhe !== "no-speech" && virhe !== "aborted") ilmoitaLoppu();
+        return;
+      }
       if (virhe === "no-speech") { lopeta("ei-puhetta"); return; }
       if (virhe === "not-allowed" || virhe === "service-not-allowed") { lopeta("estetty"); return; }
       if (virhe === "aborted") return; // stop() aiheuttaa tämän joskus
@@ -179,6 +229,8 @@ var PUHE = (function () {
     };
 
     tunnistin.onend = function () {
+      // Tunnistin ehti päätökseen — lopullinen tulos on nyt käsitelty.
+      if (lopettamassa) { ilmoitaLoppu(); return; }
       if (!kuuntelee) return;
       // Pidä-pohjassa-tilassa jatketaan kunnes sormi nostetaan.
       var jatketaanko = asetukset &&
@@ -348,6 +400,7 @@ var PUHE = (function () {
   // Vianetsintää varten aikuisten paneeliin.
   function laitetiedot() {
     return {
+      versio: window.PELI_VERSIO || "tuntematon",
       tunnistusTuettu: !!SR,
       suomiAani: onkoSuomiAania(),
       aaniaYhteensa: kaikkiAanet.length,

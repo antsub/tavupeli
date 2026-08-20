@@ -23,3 +23,5 @@ jobs:
           node-version: "22"
       - name: Aja pelin testit
         run: node testit/testit.js
+      - name: Aja puheentunnistuksen testit
+        run: node testit/puhetestit.js

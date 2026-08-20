@@ -20,6 +20,11 @@
 
 (function () {
 
+  /* Version tunniste. Näkyy aikuisten paneelin diagnoosissa, jotta
+     nähdään heti ajaako laite uusinta versiota vai vanhaa välimuistista.
+     Kasvatetaan aina kun peliä muutetaan. */
+  window.PELI_VERSIO = "2026-08-20b";
+
   /* ================= apurit ================= */
 
   function $(id) { return document.getElementById(id); }
@@ -1023,6 +1028,9 @@
     mikkiPainoAlkoi = 0;
     if (!PUHE.kuunteleeko()) return;
     if (kesto >= MIKKI_PITO_RAJA) {
+      // Tunnistin toimittaa lopullisen tuloksen vasta hetken päästä,
+      // joten kerrotaan lapselle että peli miettii vielä.
+      $("mikki-teksti").textContent = "KUUNTELEN…";
       PUHE.lopeta("valmis");      // pidettiin pohjassa — lukeminen valmis
     } else {
       PUHE.vapautaPito();         // pelkkä napautus — kuunnellaan hiljaisuuteen asti
@@ -1934,6 +1942,7 @@
       alusta.appendChild(r);
     }
 
+    rivi("Pelin versio", true, t.versio || "tuntematon");
     rivi("Selain tukee puheentunnistusta", t.tunnistusTuettu,
       t.tunnistusTuettu ? "kyllä" : "ei — kokeile Safaria");
     rivi("Suojattu yhteys (https)", t.https,
@@ -1944,6 +1953,31 @@
     if (t.viimeVirhe) {
       rivi("Viimeisin virhe", false, t.viimeVirhe.selitys);
     }
+
+    var paivita = luo("button", "linkkinappi", "🔄 Pakota päivitys (tyhjennä välimuisti)");
+    paivita.addEventListener("click", pakotaPaivitys);
+    alusta.appendChild(paivita);
+  }
+
+  /* Tyhjentää selaimen välimuistin ja service workerin, jotta laite
+     varmasti lataa uusimman version. Ilman tätä vanha versio voi jäädä
+     roikkumaan eikä korjaus näy. */
+  function pakotaPaivitys() {
+    var tehtavat = [];
+    if ("caches" in window) {
+      tehtavat.push(caches.keys().then(function (avaimet) {
+        return Promise.all(avaimet.map(function (a) { return caches.delete(a); }));
+      }));
+    }
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      tehtavat.push(navigator.serviceWorker.getRegistrations().then(function (rekisterit) {
+        return Promise.all(rekisterit.map(function (r) { return r.unregister(); }));
+      }));
+    }
+    Promise.all(tehtavat)["catch"](function () { /* ei haittaa */ })
+      .then(function () {
+        location.replace(location.pathname + "?paivitetty=" + Date.now());
+      });
   }
 
   function aloitaMikkitesti() {
@@ -1995,8 +2029,10 @@
         var kuvaus = teksti
           ? "Peli kuuli: \u201d" + teksti + "\u201d"
           : (syy === "estetty" ? "Mikrofonilupa puuttuu." : "Peli ei kuullut mitään.");
+        var muut = (kandidaatit || []).filter(function (k) { return k && k !== teksti; });
         $("mikkitesti-kuultu").textContent = kuvaus + "  →  " +
-          (mikkitesti.hyvaksyi ? "peli HYVÄKSYI ✔" : "peli HYLKÄSI ✖");
+          (mikkitesti.hyvaksyi ? "peli HYVÄKSYI ✔" : "peli HYLKÄSI ✖") +
+          (muut.length ? "   (muut arvaukset: " + muut.slice(0, 3).join(", ") + ")" : "");
         $("mikkitesti-tuomio").classList.remove("piilossa");
       }
     });

@@ -155,6 +155,13 @@ Mikrofoninappia voi käyttää kahdella tavalla:
   milloin hidas lukija lopetti.
 - **Napauta** ja lue — kuuntelu päättyy hiljaisuuteen.
 
+**Ajaako laite uusinta versiota?** ⚙️-paneelin Mikrofonitesti-välilehden
+diagnoosilaatikko näyttää ylimpänä *Pelin versio*. Jos se ei vastaa
+uusinta, paina saman laatikon **🔄 Pakota päivitys** -nappia: se
+tyhjentää selaimen välimuistin ja service workerin ja lataa pelin
+uudelleen. Vanha välimuistiin jäänyt versio on tavallisin syy siihen,
+ettei korjaus näytä vaikuttavan mitään.
+
 Jos tunnistus ei toimi, katso ⚙️-paneelin **Mikrofonitesti**-välilehden
 diagnoosilaatikko: se kertoo suoraan mikä puuttuu (https, mikrofonilupa,
 suomenkielinen ääni, upotettu sivu) ja mikä oli viimeisin virhe.
@@ -249,7 +256,8 @@ ja tyyliohjeineen: [`GRAFIIKKA.md`](GRAFIIKKA.md).
 ```
 
 - Testit: `node testit/testit.js` (tavutus, vertailu, sisällön eheys,
-  höpölöitsyt, kirjaimet, HTML-id:t).
+  höpölöitsyt, kirjaimet, HTML-id:t) ja `node testit/puhetestit.js`
+  (puheentunnistuksen lopetuslogiikka väärennetyllä tunnistimella).
 - Peliä voi avata testitilassa osoitteella `index.html?testi=1`, jolloin
   `window.__tavuritari` paljastaa nykyisen tehtävän automaatiota varten.
 - Paikallinen kokeilu: `python3 -m http.server` repon juuressa ja avaa

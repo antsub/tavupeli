@@ -2874,17 +2874,48 @@ var PUHE = (function () {
     return lista.filter(function (t) { return t.length > 0; });
   }
 
-  // Päättää kuuntelun ja ilmoittaa tuloksen pelille.
-  function lopeta(syy) {
-    if (!kuuntelee) return;
+  /* Päättää kuuntelun ja ilmoittaa tuloksen pelille.
+
+     TÄRKEÄ YKSITYISKOHTA: Web Speech API ei toimita lopullista tulosta
+     silloin kun stop() kutsutaan, vaan vasta sen JÄLKEEN — tyypillisesti
+     muutaman sadan millisekunnin päästä. Jos tulos arvioitaisiin heti,
+     lyhyt lukusuoritus näyttäisi siltä ettei mitään kuultu. Siksi
+     stop():n jälkeen odotetaan hetki, että tunnistin ehtii vastata. */
+
+  var lopettamassa = false;
+  var lopetusSyy = null;
+  var lopetusAjastin = null;
+
+  function ilmoitaLoppu() {
+    clearTimeout(lopetusAjastin);
+    lopetusAjastin = null;
+    if (!kuuntelee && !lopettamassa) return;
+    lopettamassa = false;
     kuuntelee = false;
+    peruAjastimet();
+    var a = asetukset;
+    asetukset = null;
+    var syy = lopetusSyy || "loppu";
+    lopetusSyy = null;
+    if (a && a.loppu) a.loppu(kokoTeksti(), kaikkiKandidaatit(), syy);
+  }
+
+  function lopeta(syy) {
+    if (!kuuntelee || lopettamassa) return;
+    lopetusSyy = syy || "loppu";
     peruAjastimet();
     if (tunnistin) {
       try { tunnistin.stop(); } catch (e) { /* jo pysähtynyt */ }
     }
-    var a = asetukset;
-    asetukset = null;
-    if (a && a.loppu) a.loppu(kokoTeksti(), kaikkiKandidaatit(), syy || "loppu");
+
+    // Peruutus ja virheet eivät tuota tulosta, joten niitä ei odoteta.
+    if (syy === "kayttaja" || syy === "estetty" || syy === "virhe") {
+      ilmoitaLoppu();
+      return;
+    }
+
+    lopettamassa = true;
+    lopetusAjastin = setTimeout(ilmoitaLoppu, 2200);
   }
 
   // Napautus (lyhyt painallus) vaihtaa pidä-pohjassa -tilasta
@@ -2930,6 +2961,10 @@ var PUHE = (function () {
     kandidaatit = [];
     uudelleenKaynnistykset = 0;
     viimeisinVirhe = null;
+    clearTimeout(lopetusAjastin);
+    lopetusAjastin = null;
+    lopettamassa = false;
+    lopetusSyy = null;
     kuuntelee = true;
 
     tunnistin = new SR();
@@ -2957,14 +2992,29 @@ var PUHE = (function () {
         }
       }
       lopullinen = lopullinen.replace(/\s+/g, " ");
-      viritaHiljaisuusAjastin();
       if (asetukset && asetukset.tulos) asetukset.tulos(kokoTeksti(), kaikkiKandidaatit());
+
+      // Odotettu tulos saapui stop():n jälkeen — ei jäädä odottamaan turhaan.
+      if (lopettamassa) {
+        if (lopullinen.trim()) {
+          clearTimeout(lopetusAjastin);
+          lopetusAjastin = setTimeout(ilmoitaLoppu, 350);
+        }
+        return;
+      }
+      viritaHiljaisuusAjastin();
     };
 
     tunnistin.onerror = function (e) {
-      if (!kuuntelee) return;
+      if (!kuuntelee && !lopettamassa) return;
       var virhe = e && e.error;
       viimeisinVirhe = { koodi: virhe, selitys: virheSelitys(virhe) };
+      if (lopettamassa) {
+        // Odotimme jo tulosta; "no-speech" ja "aborted" ovat tässä
+        // vaiheessa normaaleja eivätkä muuta lopputulosta.
+        if (virhe !== "no-speech" && virhe !== "aborted") ilmoitaLoppu();
+        return;
+      }
       if (virhe === "no-speech") { lopeta("ei-puhetta"); return; }
       if (virhe === "not-allowed" || virhe === "service-not-allowed") { lopeta("estetty"); return; }
       if (virhe === "aborted") return; // stop() aiheuttaa tämän joskus
@@ -2972,6 +3022,8 @@ var PUHE = (function () {
     };
 
     tunnistin.onend = function () {
+      // Tunnistin ehti päätökseen — lopullinen tulos on nyt käsitelty.
+      if (lopettamassa) { ilmoitaLoppu(); return; }
       if (!kuuntelee) return;
       // Pidä-pohjassa-tilassa jatketaan kunnes sormi nostetaan.
       var jatketaanko = asetukset &&
@@ -3141,6 +3193,7 @@ var PUHE = (function () {
   // Vianetsintää varten aikuisten paneeliin.
   function laitetiedot() {
     return {
+      versio: window.PELI_VERSIO || "tuntematon",
       tunnistusTuettu: !!SR,
       suomiAani: onkoSuomiAania(),
       aaniaYhteensa: kaikkiAanet.length,
@@ -3196,6 +3249,11 @@ var PUHE = (function () {
    ===================================================================== */
 
 (function () {
+
+  /* Version tunniste. Näkyy aikuisten paneelin diagnoosissa, jotta
+     nähdään heti ajaako laite uusinta versiota vai vanhaa välimuistista.
+     Kasvatetaan aina kun peliä muutetaan. */
+  window.PELI_VERSIO = "2026-08-20b";
 
   /* ================= apurit ================= */
 
@@ -4200,6 +4258,9 @@ var PUHE = (function () {
     mikkiPainoAlkoi = 0;
     if (!PUHE.kuunteleeko()) return;
     if (kesto >= MIKKI_PITO_RAJA) {
+      // Tunnistin toimittaa lopullisen tuloksen vasta hetken päästä,
+      // joten kerrotaan lapselle että peli miettii vielä.
+      $("mikki-teksti").textContent = "KUUNTELEN…";
       PUHE.lopeta("valmis");      // pidettiin pohjassa — lukeminen valmis
     } else {
       PUHE.vapautaPito();         // pelkkä napautus — kuunnellaan hiljaisuuteen asti
@@ -5111,6 +5172,7 @@ var PUHE = (function () {
       alusta.appendChild(r);
     }
 
+    rivi("Pelin versio", true, t.versio || "tuntematon");
     rivi("Selain tukee puheentunnistusta", t.tunnistusTuettu,
       t.tunnistusTuettu ? "kyllä" : "ei — kokeile Safaria");
     rivi("Suojattu yhteys (https)", t.https,
@@ -5121,6 +5183,31 @@ var PUHE = (function () {
     if (t.viimeVirhe) {
       rivi("Viimeisin virhe", false, t.viimeVirhe.selitys);
     }
+
+    var paivita = luo("button", "linkkinappi", "🔄 Pakota päivitys (tyhjennä välimuisti)");
+    paivita.addEventListener("click", pakotaPaivitys);
+    alusta.appendChild(paivita);
+  }
+
+  /* Tyhjentää selaimen välimuistin ja service workerin, jotta laite
+     varmasti lataa uusimman version. Ilman tätä vanha versio voi jäädä
+     roikkumaan eikä korjaus näy. */
+  function pakotaPaivitys() {
+    var tehtavat = [];
+    if ("caches" in window) {
+      tehtavat.push(caches.keys().then(function (avaimet) {
+        return Promise.all(avaimet.map(function (a) { return caches.delete(a); }));
+      }));
+    }
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      tehtavat.push(navigator.serviceWorker.getRegistrations().then(function (rekisterit) {
+        return Promise.all(rekisterit.map(function (r) { return r.unregister(); }));
+      }));
+    }
+    Promise.all(tehtavat)["catch"](function () { /* ei haittaa */ })
+      .then(function () {
+        location.replace(location.pathname + "?paivitetty=" + Date.now());
+      });
   }
 
   function aloitaMikkitesti() {
@@ -5172,8 +5259,10 @@ var PUHE = (function () {
         var kuvaus = teksti
           ? "Peli kuuli: \u201d" + teksti + "\u201d"
           : (syy === "estetty" ? "Mikrofonilupa puuttuu." : "Peli ei kuullut mitään.");
+        var muut = (kandidaatit || []).filter(function (k) { return k && k !== teksti; });
         $("mikkitesti-kuultu").textContent = kuvaus + "  →  " +
-          (mikkitesti.hyvaksyi ? "peli HYVÄKSYI ✔" : "peli HYLKÄSI ✖");
+          (mikkitesti.hyvaksyi ? "peli HYVÄKSYI ✔" : "peli HYLKÄSI ✖") +
+          (muut.length ? "   (muut arvaukset: " + muut.slice(0, 3).join(", ") + ")" : "");
         $("mikkitesti-tuomio").classList.remove("piilossa");
       }
     });

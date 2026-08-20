@@ -3,7 +3,11 @@
    ilman nettiyhteyttä. Kasvata versionumeroa kun muutat pelin tiedostoja,
    niin pelaajat saavat uuden version. */
 
-var VALIMUISTI = "tavuritari-v1";
+/* Välimuistin nimi sisältää version. Kun tätä kasvatetaan, vanha
+   välimuisti poistetaan aktivoinnissa eikä vanha koodi jää roikkumaan.
+   Kasvata aina kun pelin tiedostoja muutetaan. */
+var VERSIO = "2026-08-20b";
+var VALIMUISTI = "tavuritari-" + VERSIO;
 
 var TIEDOSTOT = [
   "./",
